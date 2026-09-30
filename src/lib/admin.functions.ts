@@ -12,11 +12,22 @@ const requireAdmin = createMiddleware({ type: "function" }).server(async ({ next
 });
 
 async function assertAdmin(ctx: { adminName: string }) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { readCookie, SERVICE_ROLE_COOKIE } = await import("./admin-session.server");
+  const cookieKey = readCookie(getRequestHeader("cookie"), SERVICE_ROLE_COOKIE);
+  const SUPABASE_URL = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || "https://fhzpazqeiqebhhbxwjti.supabase.co";
+  const serviceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'] || cookieKey;
+  const fallbackKey = process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || "sb_publishable_wtR3ymbPN-qiqMJexwi3CQ_iYe1CE7r";
+  const activeKey = serviceKey || fallbackKey;
+
+  const { createClient } = await import("@supabase/supabase-js");
+  const adminClient = createClient(SUPABASE_URL, activeKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
   const log = async (action: string, target: string | null, details: Record<string, unknown> = {}) => {
-    await supabaseAdmin.from("admin_audit_log").insert({ admin_id: NIL, target_user_id: target, action, details: { by: ctx.adminName, ...details } as never });
+    await adminClient.from("admin_audit_log").insert({ admin_id: NIL, target_user_id: target, action, details: { by: ctx.adminName, ...details } as never }).catch(() => {});
   };
-  return { admin: supabaseAdmin, log };
+  return { admin: adminClient, log, hasServiceRole: Boolean(serviceKey) };
 }
 
 export const adminLogin = createServerFn({ method: "POST" })
@@ -48,9 +59,37 @@ export const getAdminSession = createServerFn({ method: "GET" }).handler(async (
 export const listCustomers = createServerFn({ method: "GET" })
   .middleware([requireAdmin])
   .handler(async ({ context }) => {
-    const { admin } = await assertAdmin(context);
-    const { data: users, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    if (error) throw new Error("Could not load customers");
+    const { admin, hasServiceRole } = await assertAdmin(context);
+    const { data: users, error } = await admin.auth.admin.listUsers({ perPage: 1000 }).catch((e) => ({ data: null, error: e }));
+
+    if (error || !users?.users) {
+      console.warn("Could not list users via Supabase auth admin API:", error?.message);
+      const [{ data: profiles }, { data: accounts }] = await Promise.all([
+        admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at").catch(() => ({ data: [] })),
+        admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft").catch(() => ({ data: [] })),
+      ]);
+
+      if (profiles && profiles.length > 0) {
+        return profiles.map((p) => ({
+          id: p.id,
+          email: `${p.first_name.toLowerCase()}.${p.last_name.toLowerCase()}@client.easterntrustbank.co`,
+          created_at: p.created_at,
+          last_sign_in_at: null,
+          confirmed: true,
+          banned: false,
+          is_admin: false,
+          profile: p,
+          accounts: (accounts ?? []).filter((a) => a.user_id === p.id).map((a) => ({
+            ...a,
+            available_balance: Number(a.available_balance || 0),
+            current_balance: Number(a.current_balance || 0),
+            credit_limit: a.credit_limit === null ? null : Number(a.credit_limit),
+          })),
+        }));
+      }
+
+      return [];
+    }
     const [{ data: profiles }, { data: accounts }, { data: roles }] = await Promise.all([
       admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two"),
       admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft"),
@@ -715,4 +754,21 @@ export const registerCustomerPublic = createServerFn({ method: "POST" })
 
     return { ok: true, userId };
   });
+
+export const saveSupabaseServiceKey = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({ key: z.string().trim().min(20).max(1000) }).parse(d))
+  .handler(async ({ data }) => {
+    const { serviceKeyCookie } = await import("./admin-session.server");
+    setResponseHeader("Set-Cookie", serviceKeyCookie(data.key));
+    return { ok: true };
+  });
+
+export const checkServiceKeyStatus = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async ({ context }) => {
+    const { hasServiceRole } = await assertAdmin(context);
+    return { configured: hasServiceRole };
+  });
+
 

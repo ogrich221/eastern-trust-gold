@@ -72,6 +72,8 @@ import {
   renameCustomerAccount,
   removeCustomerAccount,
   signInAsCustomer,
+  saveSupabaseServiceKey,
+  checkServiceKeyStatus,
 } from "@/lib/admin.functions";
 import { TransactionForm, TransactionLedger } from "@/components/admin-transactions";
 import { UserProfile } from "@/components/user-profile";
@@ -173,8 +175,36 @@ function AdminPortal({ adminName }: { adminName: string }) {
 
   const listFn = useServerFn(listCustomers);
   const auditFn = useServerFn(listAuditLog);
+  const checkKeyFn = useServerFn(checkServiceKeyStatus);
+  const saveKeyFn = useServerFn(saveSupabaseServiceKey);
+
   const customers = useQuery({ queryKey: ["admin-customers"], queryFn: () => listFn() });
   const audit = useQuery({ queryKey: ["admin-audit"], queryFn: () => auditFn() });
+  const keyStatus = useQuery({ queryKey: ["admin-key-status"], queryFn: () => checkKeyFn() });
+
+  const [serviceKeyInput, setServiceKeyInput] = useState("");
+  const [savingKey, setSavingKey] = useState(false);
+
+  const handleSaveKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (serviceKeyInput.trim().length < 20) {
+      toast.error("Please enter a valid Supabase service_role key");
+      return;
+    }
+    setSavingKey(true);
+    try {
+      await saveKeyFn({ data: { key: serviceKeyInput.trim() } });
+      toast.success("Service role key connected! Loading customer database...");
+      setServiceKeyInput("");
+      await qcRoot.invalidateQueries({ queryKey: ["admin-key-status"] });
+      await qcRoot.invalidateQueries({ queryKey: ["admin-customers"] });
+      await qcRoot.invalidateQueries({ queryKey: ["admin-audit"] });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save key");
+    } finally {
+      setSavingKey(false);
+    }
+  };
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended" | "admin" | "unconfirmed">("all");
@@ -349,7 +379,43 @@ function AdminPortal({ adminName }: { adminName: string }) {
           </div>
 
           {/* TAB 1: CUSTOMER MANAGEMENT */}
-          <TabsContent value="customers" className="mt-6">
+          <TabsContent value="customers" className="mt-6 space-y-6">
+            {!keyStatus.data?.configured && (
+              <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-5 text-amber-200">
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <div className="grid size-10 place-items-center rounded-lg bg-amber-500/20 text-amber-400 shrink-0">
+                    <KeyRound className="size-5" />
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <h4 className="font-semibold text-sm text-foreground">Connect Supabase Service Role Key to Monitor &amp; Manage Customers</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Supabase restricts user monitoring, listing, and direct customer administration to the backend <code className="text-foreground">service_role</code> secret key. Paste your secret key below to connect your database immediately:
+                    </p>
+                    <form onSubmit={handleSaveKey} className="flex flex-wrap gap-2 pt-1">
+                      <Input
+                        type="password"
+                        placeholder="Paste service_role key (sb_secret_... or eyJhbGci...)"
+                        value={serviceKeyInput}
+                        onChange={(e) => setServiceKeyInput(e.target.value)}
+                        className="text-xs h-9 font-mono max-w-md bg-background"
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={savingKey || serviceKeyInput.trim().length < 20}
+                        className="text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white"
+                      >
+                        {savingKey ? "Connecting…" : "Connect Key & Load Users"}
+                      </Button>
+                    </form>
+                    <p className="text-[11px] text-muted-foreground/80">
+                      📍 Where to find it: <strong>Supabase Dashboard → Project Settings → API → Project API Keys → service_role (secret)</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
               {/* Customer Directory Sidebar */}
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col h-[750px]">

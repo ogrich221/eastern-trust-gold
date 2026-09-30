@@ -45,3 +45,9 @@ export function sessionCookie(token: string) {
   return `${ADMIN_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${MAX_AGE}`;
 }
 export const clearCookie = `${ADMIN_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+
+export const SERVICE_ROLE_COOKIE = "etb_sb_service_key";
+export function serviceKeyCookie(key: string) {
+  return `${SERVICE_ROLE_COOKIE}=${encodeURIComponent(key)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${60 * 60 * 24 * 30}`;
+}
+
