@@ -73,7 +73,9 @@ function SignupPage(){
         return;
       }
       if(data.session&&data.user){
-        await supabase.from("profiles").insert({id:data.user.id,...profile}).catch(()=>{});
+        try {
+          await supabase.from("profiles").insert({id:data.user.id,...profile});
+        } catch {}
       }
       setBusy(false);
       setDone(true);

@@ -25,7 +25,9 @@ async function assertAdmin(ctx: { adminName: string }) {
   });
 
   const log = async (action: string, target: string | null, details: Record<string, unknown> = {}) => {
-    await adminClient.from("admin_audit_log").insert({ admin_id: NIL, target_user_id: target, action, details: { by: ctx.adminName, ...details } as never }).catch(() => {});
+    try {
+      await adminClient.from("admin_audit_log").insert({ admin_id: NIL, target_user_id: target, action, details: { by: ctx.adminName, ...details } as never });
+    } catch {}
   };
   return { admin: adminClient, log, hasServiceRole: Boolean(serviceKey) };
 }
@@ -60,13 +62,21 @@ export const listCustomers = createServerFn({ method: "GET" })
   .middleware([requireAdmin])
   .handler(async ({ context }) => {
     const { admin, hasServiceRole } = await assertAdmin(context);
-    const { data: users, error } = await admin.auth.admin.listUsers({ perPage: 1000 }).catch((e) => ({ data: null, error: e }));
+    let users: any = null;
+    let error: any = null;
+    try {
+      const res = await admin.auth.admin.listUsers({ perPage: 1000 });
+      users = res.data;
+      error = res.error;
+    } catch (e) {
+      error = e;
+    }
 
     if (error || !users?.users) {
       console.warn("Could not list users via Supabase auth admin API:", error?.message);
       const [{ data: profiles }, { data: accounts }] = await Promise.all([
-        admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at").catch(() => ({ data: [] })),
-        admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft").catch(() => ({ data: [] })),
+        admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at"),
+        admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft"),
       ]);
 
       if (profiles && profiles.length > 0) {
@@ -132,11 +142,11 @@ export const listCustomers = createServerFn({ method: "GET" })
         profileList.push(synthesizedProfile);
 
         // Asynchronously persist to profiles table so subsequent queries find it
-        admin.from("profiles").insert({
+        Promise.resolve(admin.from("profiles").insert({
           ...synthesizedProfile,
           security_answer_one_hash: String(pending.security_answer_one_hash || ""),
           security_answer_two_hash: String(pending.security_answer_two_hash || ""),
-        }).catch(() => {});
+        })).catch(() => {});
       }
 
       // Auto-provision initial checking account if user has none
@@ -158,7 +168,7 @@ export const listCustomers = createServerFn({ method: "GET" })
           id: "temp-" + u.id,
           ...initialChecking,
         } as any);
-        admin.from("bank_accounts").insert(initialChecking).catch(() => {});
+        Promise.resolve(admin.from("bank_accounts").insert(initialChecking)).catch(() => {});
       }
     }
 
@@ -481,38 +491,46 @@ export const createCustomer = createServerFn({ method: "POST" })
     }
 
     // 3. Insert / update profile row
-    await admin.from("profiles").upsert({ id: userId, ...profRow }).catch(() => {});
+    try {
+      await admin.from("profiles").upsert({ id: userId, ...profRow });
+    } catch {}
 
     // 4. Provision Everyday Checking account
     const last_four_checking = String(Math.floor(1000 + Math.random() * 9000));
-    await admin.from("bank_accounts").insert({
-      user_id: userId,
-      account_type: "checking",
-      name: "Everyday Checking",
-      last_four: last_four_checking,
-      available_balance: 0,
-      current_balance: 0,
-      credit_limit: null,
-      currency: "USD",
-      allow_overdraft: false,
-    }).catch(() => {});
+    try {
+      await admin.from("bank_accounts").insert({
+        user_id: userId,
+        account_type: "checking",
+        name: "Everyday Checking",
+        last_four: last_four_checking,
+        available_balance: 0,
+        current_balance: 0,
+        credit_limit: null,
+        currency: "USD",
+        allow_overdraft: false,
+      });
+    } catch {}
 
     // 5. Provision Gold Rewards Card
     const last_four_credit = String(Math.floor(1000 + Math.random() * 9000));
-    await admin.from("bank_accounts").insert({
-      user_id: userId,
-      account_type: "credit",
-      name: "Gold Rewards Card",
-      last_four: last_four_credit,
-      available_balance: 5000,
-      current_balance: 0,
-      credit_limit: 5000,
-      currency: "USD",
-      allow_overdraft: false,
-    }).catch(() => {});
+    try {
+      await admin.from("bank_accounts").insert({
+        user_id: userId,
+        account_type: "credit",
+        name: "Gold Rewards Card",
+        last_four: last_four_credit,
+        available_balance: 5000,
+        current_balance: 0,
+        credit_limit: 5000,
+        currency: "USD",
+        allow_overdraft: false,
+      });
+    } catch {}
 
     // 6. Attempt email confirmation
-    await admin.auth.admin.updateUserById(userId, { email_confirm: true }).catch(() => {});
+    try {
+      await admin.auth.admin.updateUserById(userId, { email_confirm: true });
+    } catch {}
 
     await log("create_customer", userId, { email, name: `${p.first_name} ${p.last_name}` });
     return { ok: true, id: userId };
@@ -736,20 +754,24 @@ export const registerCustomerPublic = createServerFn({ method: "POST" })
 
     if (userId) {
       // Ensure profile row exists
-      await supabaseAdmin.from("profiles").insert({ id: userId, ...profRow }).catch(() => {});
+      try {
+        await supabaseAdmin.from("profiles").insert({ id: userId, ...profRow });
+      } catch {}
       // Provision initial checking account
       const last_four = String(Math.floor(1000 + Math.random() * 9000));
-      await supabaseAdmin.from("bank_accounts").insert({
-        user_id: userId,
-        account_type: "checking",
-        name: "Everyday Checking",
-        last_four,
-        available_balance: 0,
-        current_balance: 0,
-        credit_limit: null,
-        currency: "USD",
-        allow_overdraft: false,
-      }).catch(() => {});
+      try {
+        await supabaseAdmin.from("bank_accounts").insert({
+          user_id: userId,
+          account_type: "checking",
+          name: "Everyday Checking",
+          last_four,
+          available_balance: 0,
+          current_balance: 0,
+          credit_limit: null,
+          currency: "USD",
+          allow_overdraft: false,
+        });
+      } catch {}
     }
 
     return { ok: true, userId };
