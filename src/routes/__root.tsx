@@ -118,6 +118,27 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function TawkChat() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if ((window as any).Tawk_API) return;
+    (window as any).Tawk_API = (window as any).Tawk_API || {};
+    (window as any).Tawk_LoadStart = new Date();
+    const s1 = document.createElement("script");
+    const s0 = document.getElementsByTagName("script")[0];
+    s1.async = true;
+    s1.src = "https://embed.tawk.to/6abd6db60823be3449cff655/1k3pv952u";
+    s1.charset = "UTF-8";
+    s1.setAttribute("crossorigin", "*");
+    if (s0 && s0.parentNode) {
+      s0.parentNode.insertBefore(s1, s0);
+    } else {
+      document.body.appendChild(s1);
+    }
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -147,6 +168,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <TawkChat />
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
           <Link to="/" className="flex items-center gap-3" aria-label="Eastern Trust Bank home">
