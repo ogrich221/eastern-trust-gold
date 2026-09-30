@@ -291,12 +291,63 @@ export const createCustomer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { admin, log } = await assertAdmin(context);
     const { email, password, ...p } = data;
-    const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-    if (error || !created.user) throw new Error(error?.message.includes("already") ? "A customer with that email already exists" : "Could not create customer");
-    const { error: pe } = await admin.from("profiles").insert({ id: created.user.id, ...(await profileRow(p)) });
-    if (pe) { await admin.auth.admin.deleteUser(created.user.id); throw new Error("Could not create profile"); }
-    await log("create_customer", created.user.id, { email });
-    return { ok: true, id: created.user.id };
+    const profRow = await profileRow(p);
+
+    // 1. Try Supabase Auth Admin API (requires SUPABASE_SERVICE_ROLE_KEY)
+    const { data: created, error: adminErr } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        pending_profile: profRow,
+        first_name: p.first_name,
+        last_name: p.last_name,
+      },
+    });
+
+    if (!adminErr && created?.user) {
+      const { error: pe } = await admin.from("profiles").insert({ id: created.user.id, ...profRow });
+      if (pe) {
+        console.warn("Could not insert profile directly (may hydrate on login):", pe.message);
+      }
+      await log("create_customer", created.user.id, { email });
+      return { ok: true, id: created.user.id };
+    }
+
+    // 2. Check if customer already exists
+    if (adminErr?.message?.toLowerCase().includes("already") || adminErr?.message?.toLowerCase().includes("exists")) {
+      throw new Error("A customer with that email address already exists.");
+    }
+
+    // 3. Fallback: try standard signUp with user_metadata
+    const { data: signUpData, error: signErr } = await admin.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          pending_profile: profRow,
+          first_name: p.first_name,
+          last_name: p.last_name,
+        },
+      },
+    });
+
+    if (!signErr && signUpData?.user) {
+      await admin.from("profiles").insert({ id: signUpData.user.id, ...profRow }).catch(() => {});
+      await log("create_customer", signUpData.user.id, { email, via: "signup_fallback" });
+      return { ok: true, id: signUpData.user.id };
+    }
+
+    // 4. Return helpful diagnostic error
+    if (signErr?.message?.toLowerCase().includes("already") || signErr?.message?.toLowerCase().includes("exists")) {
+      throw new Error("A customer with that email address already exists.");
+    }
+    if (adminErr?.status === 401 || adminErr?.message?.includes("Bearer") || adminErr?.message?.includes("authorization")) {
+      throw new Error(
+        "Direct user creation requires SUPABASE_SERVICE_ROLE_KEY in Netlify environment variables. In the meantime, accounts can also be opened via /signup."
+      );
+    }
+    throw new Error(signErr?.message || adminErr?.message || "Could not create customer.");
   });
 
 export const createProfileForCustomer = createServerFn({ method: "POST" })

@@ -1327,8 +1327,8 @@ function NewCustomerDialog() {
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Bank Customer</DialogTitle>
-          <DialogDescription>
-            Creates an authenticated login and automatically provisions Everyday Checking, High-Yield Savings, and Gold Rewards accounts.
+          <DialogDescription className="text-xs">
+            Creates an authenticated login and automatically provisions Everyday Checking, High-Yield Savings, and Gold Rewards accounts. Note: Direct admin provisioning requires <code className="rounded bg-muted px-1">SUPABASE_SERVICE_ROLE_KEY</code> in Netlify environment variables.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4 py-2">
