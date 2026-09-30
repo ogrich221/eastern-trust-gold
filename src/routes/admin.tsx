@@ -45,9 +45,19 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Something went
 
 function AdminPage() {
   const sessionFn = useServerFn(getAdminSession);
-  const { data, isLoading } = useQuery({ queryKey: ["admin-session"], queryFn: () => sessionFn() });
-  if (isLoading) return <main className="mx-auto max-w-7xl px-5 py-16 text-muted-foreground">Loading…</main>;
-  if (!data?.adminName) return <AdminLogin />;
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["admin-session"],
+    queryFn: async () => {
+      try {
+        return await sessionFn();
+      } catch {
+        return { adminName: null };
+      }
+    },
+    retry: 1,
+  });
+  if (isLoading) return <main className="mx-auto max-w-7xl px-5 py-16 text-muted-foreground animate-pulse">Loading admin portal…</main>;
+  if (isError || !data?.adminName) return <AdminLogin />;
   return <AdminPortal adminName={data.adminName} />;
 }
 
