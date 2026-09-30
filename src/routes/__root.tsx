@@ -139,6 +139,31 @@ function TawkChat() {
   return null;
 }
 
+function NetlifyDrawerRemover() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const purge = () => {
+      const els = document.querySelectorAll(
+        "script[src*='netlify'], iframe[src*='netlify'], #netlify-hud, #netlify-hud-sdk, [data-netlify-site-id], div[class*='netlify-drawer'], div[class*='netlify-badge'], div[data-netlify-feedback]"
+      );
+      els.forEach((el) => {
+        try {
+          el.remove();
+        } catch {}
+      });
+    };
+    purge();
+    const timer = setInterval(purge, 500);
+    const obs = new MutationObserver(purge);
+    obs.observe(document.documentElement, { childList: true, subtree: true });
+    return () => {
+      clearInterval(timer);
+      obs.disconnect();
+    };
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -169,6 +194,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <TawkChat />
+      <NetlifyDrawerRemover />
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
           <Link to="/" className="flex items-center gap-3" aria-label="Eastern Trust Bank home">

@@ -158,3 +158,25 @@
 @utility hero-scrim {
   background: linear-gradient(90deg, oklch(0.08 0.01 80 / 0.98) 0%, oklch(0.08 0.01 80 / 0.82) 42%, oklch(0.08 0.01 80 / 0.14) 76%);
 }
+
+/* Hide Netlify Drawer, HUD, and "Powered by Netlify" badges */
+iframe[src*="netlify"],
+iframe[id*="netlify"],
+#netlify-hud,
+#netlify-hud-sdk,
+div[data-netlify-feedback],
+div[class*="netlify-drawer"],
+div[class*="netlify-badge"],
+[data-netlify-site-id],
+[id*="netlify-hud"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  z-index: -99999 !important;
+}
