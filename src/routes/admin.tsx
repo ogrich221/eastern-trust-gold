@@ -186,7 +186,7 @@ function AdminPortal({ adminName }: { adminName: string }) {
     const list = customers.data ?? [];
     list.forEach((c) => {
       c.accounts.forEach((a) => {
-        if (a.account_type === "checking" || a.account_type === "savings") {
+        if (a.account_type === "checking") {
           totalDeposits += Number(a.available_balance || 0);
         } else if (a.account_type === "credit") {
           totalCredit += Number(a.current_balance || 0);
@@ -257,7 +257,7 @@ function AdminPortal({ adminName }: { adminName: string }) {
               <Wallet className="size-4 text-primary" />
             </div>
             <p className="mt-2 text-2xl font-bold text-primary font-display">{money(metrics.totalDeposits)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Liquid Checking & Savings</p>
+            <p className="mt-1 text-xs text-muted-foreground">Liquid Everyday Checking</p>
           </div>
 
           <div className="rounded-xl border border-border bg-card p-5">
@@ -1147,9 +1147,7 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
 
 const TYPE_DEFAULT_NAMES: Record<string, string> = {
   checking: "Everyday Checking",
-  savings: "High-Yield Savings",
   credit: "Gold Rewards Card",
-  investment: "Wealth Portfolio",
 };
 
 function AddAccount({ userId, existing }: { userId: string; existing: string[] }) {
@@ -1328,7 +1326,7 @@ function NewCustomerDialog() {
         <DialogHeader>
           <DialogTitle>Create New Bank Customer</DialogTitle>
           <DialogDescription className="text-xs">
-            Creates an authenticated login and automatically provisions Everyday Checking, High-Yield Savings, and Gold Rewards accounts. Note: Direct admin provisioning requires <code className="rounded bg-muted px-1">SUPABASE_SERVICE_ROLE_KEY</code> in Netlify environment variables.
+            Creates an authenticated login and automatically provisions Everyday Checking and Gold Rewards Card accounts. Note: Direct admin provisioning requires <code className="rounded bg-muted px-1">SUPABASE_SERVICE_ROLE_KEY</code> in Netlify environment variables.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4 py-2">

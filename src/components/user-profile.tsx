@@ -2,9 +2,14 @@ import { useState, useMemo, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Landmark,
-  PiggyBank,
   CreditCard,
-  LineChart,
+  Bitcoin,
+  TrendingUp,
+  ArrowDownRight,
+  ArrowUpRight,
+  QrCode,
+  RefreshCw,
+  Zap,
   Copy,
   Check,
   Eye,
@@ -17,7 +22,6 @@ import {
   Smartphone,
   Mail,
   MapPin,
-  Calendar,
   Download,
   ExternalLink,
   Edit3,
@@ -84,23 +88,11 @@ const ACCOUNT_TYPE_CONFIG: Record<
     fullPrefix: "8204 9182 ",
     description: "Daily spending, debit transactions, and automated direct deposits",
   },
-  savings: {
-    label: "High-Yield Savings",
-    icon: PiggyBank,
-    fullPrefix: "4193 8820 ",
-    description: "4.85% APY high-yield compounding emergency & growth reserves",
-  },
   credit: {
     label: "Gold Rewards Card",
     icon: CreditCard,
     fullPrefix: "5421 9012 ",
     description: "3% Cash back on travel and dining with zero foreign transaction fees",
-  },
-  investment: {
-    label: "Wealth Management",
-    icon: LineChart,
-    fullPrefix: "7701 4410 ",
-    description: "Managed global equities, fixed income, and liquidity portfolios",
   },
 };
 
@@ -275,32 +267,107 @@ export function UserProfile({
     }
   };
 
-  // Balance calculations
+  // Filter visible accounts (High-Yield Savings & Wealth Portfolio removed per requirements)
+  const visibleAccounts = useMemo(
+    () => accounts.filter((a) => a.account_type !== "savings" && a.account_type !== "investment"),
+    [accounts]
+  );
+
   const totalAssets = useMemo(
     () =>
-      accounts
-        .filter((a) => a.account_type !== "credit")
+      visibleAccounts
+        .filter((a) => a.account_type === "checking")
         .reduce((sum, a) => sum + (a.current_balance || 0), 0),
-    [accounts]
+    [visibleAccounts]
   );
 
   const availableCash = useMemo(
     () =>
-      accounts
-        .filter((a) => a.account_type === "checking" || a.account_type === "savings")
+      visibleAccounts
+        .filter((a) => a.account_type === "checking")
         .reduce((sum, a) => sum + (a.available_balance || 0), 0),
-    [accounts]
+    [visibleAccounts]
   );
 
   const totalCardOwed = useMemo(
     () =>
-      accounts
+      visibleAccounts
         .filter((a) => a.account_type === "credit")
         .reduce((sum, a) => sum + (a.current_balance || 0), 0),
-    [accounts]
+    [visibleAccounts]
   );
 
-  const primaryChecking = accounts.find((a) => a.account_type === "checking") || accounts[0];
+  const primaryChecking = visibleAccounts.find((a) => a.account_type === "checking") || visibleAccounts[0];
+
+  // Bitcoin (BTC) Trading & Custody State
+  const [btcPrice] = useState(64850.0);
+  const [btcHoldings, setBtcHoldings] = useState(0.0418);
+  const [btcBuyUsd, setBtcBuyUsd] = useState("500");
+  const [btcBuying, setBtcBuying] = useState(false);
+  const [autoDca, setAutoDca] = useState(false);
+  const [dcaFreq, setDcaFreq] = useState("weekly");
+  const [dcaAmount, setDcaAmount] = useState("100");
+  const [btcTransactions, setBtcTransactions] = useState([
+    {
+      id: "btc-tx-1",
+      type: "BUY",
+      amountBtc: 0.025,
+      amountUsd: 1621.25,
+      price: 64850.0,
+      date: "Today, 10:14 AM",
+      status: "COMPLETED",
+      txHash: "bc1q9a7z4m28v0e91f63j8a98f2",
+    },
+    {
+      id: "btc-tx-2",
+      type: "BUY",
+      amountBtc: 0.0168,
+      amountUsd: 1089.48,
+      price: 64850.0,
+      date: "Sep 28, 2026, 03:45 PM",
+      status: "COMPLETED",
+      txHash: "bc1q4k2p7x91w3y5v8t6m11a9",
+    },
+  ]);
+
+  const handleBuyBitcoin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const usd = parseFloat(btcBuyUsd.replace(/,/g, ""));
+    if (isNaN(usd) || usd <= 0) {
+      toast.error("Please enter a valid dollar amount.");
+      return;
+    }
+    const currentAvail = primaryChecking ? primaryChecking.available_balance : 0;
+    if (usd > currentAvail) {
+      toast.error(`Insufficient checking funds. Available: ${formatCurrency(currentAvail)}`);
+      return;
+    }
+
+    setBtcBuying(true);
+    setTimeout(() => {
+      const btcPurchased = usd / btcPrice;
+      setBtcHoldings((prev) => prev + btcPurchased);
+      if (primaryChecking) {
+        primaryChecking.available_balance = Math.max(0, primaryChecking.available_balance - usd);
+        primaryChecking.current_balance = Math.max(0, primaryChecking.current_balance - usd);
+      }
+      const newTx = {
+        id: `btc-tx-${Date.now()}`,
+        type: "BUY",
+        amountBtc: btcPurchased,
+        amountUsd: usd,
+        price: btcPrice,
+        date: "Just now",
+        status: "COMPLETED",
+        txHash: `bc1q${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 6)}`,
+      };
+      setBtcTransactions((prev) => [newTx, ...prev]);
+      setBtcBuying(false);
+      toast.success(
+        `Successfully purchased ${btcPurchased.toFixed(8)} BTC for ${formatCurrency(usd)}! Custody settlement complete.`
+      );
+    }, 850);
+  };
 
   return (
     <div className="space-y-8">
@@ -336,9 +403,6 @@ export function UserProfile({
               <p className="mt-1 text-sm text-muted-foreground">{user.email || "No email linked"}</p>
               <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <Calendar className="size-3.5 text-primary" /> Member since 2026
-                </span>
-                <span className="flex items-center gap-1">
                   <MapPin className="size-3.5 text-primary" />
                   {profile.city ? `${profile.city}, USA` : "Eastern Trust Client"}
                 </span>
@@ -350,6 +414,13 @@ export function UserProfile({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <Button
+              size="sm"
+              onClick={() => setActiveTab("bitcoin")}
+              className="bg-[#F7931A] text-white hover:bg-[#F7931A]/90 text-xs font-semibold shadow-sm"
+            >
+              <Bitcoin className="mr-1.5 size-4" /> Buy Bitcoin
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -380,24 +451,33 @@ export function UserProfile({
         </div>
 
         {/* Financial Snapshot Summary Ribbon */}
-        <div className="mt-8 grid grid-cols-1 gap-4 border-t border-border pt-6 sm:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-4 border-t border-border pt-6 sm:grid-cols-4">
           <div className="rounded-lg bg-background/50 p-4 border border-border/50">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Total Assets
+              Checking Balance
             </p>
             <p className="mt-2 text-2xl font-bold text-primary font-display">
               {hideBalances ? "••••••••" : formatCurrency(totalAssets)}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">Checking, Savings & Wealth</p>
+            <p className="mt-1 text-xs text-muted-foreground">Everyday Checking liquid balance</p>
           </div>
           <div className="rounded-lg bg-background/50 p-4 border border-border/50">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Liquid Available Funds
+              Liquid Available
             </p>
             <p className="mt-2 text-2xl font-bold text-foreground font-display">
               {hideBalances ? "••••••••" : formatCurrency(availableCash)}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">Instant spend & transfer capacity</p>
+            <p className="mt-1 text-xs text-muted-foreground">Immediate spend & transfer funds</p>
+          </div>
+          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Bitcoin Portfolio
+            </p>
+            <p className="mt-2 text-2xl font-bold text-[#F7931A] font-display">
+              {hideBalances ? "••••••••" : formatCurrency(btcHoldings * btcPrice)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{btcHoldings.toFixed(4)} BTC in Custody</p>
           </div>
           <div className="rounded-lg bg-background/50 p-4 border border-border/50">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -406,7 +486,7 @@ export function UserProfile({
             <p className="mt-2 text-2xl font-bold text-foreground font-display">
               {hideBalances ? "••••••••" : formatCurrency(totalCardOwed)}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">Gold Rewards Statement balance</p>
+            <p className="mt-1 text-xs text-muted-foreground">Gold Rewards statement owed</p>
           </div>
         </div>
       </section>
@@ -420,6 +500,12 @@ export function UserProfile({
               className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
             >
               <Landmark className="mr-2 size-4" /> Overview & Accounts
+            </TabsTrigger>
+            <TabsTrigger
+              value="bitcoin"
+              className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-[#F7931A] data-[state=active]:bg-card data-[state=active]:text-[#F7931A]"
+            >
+              <Bitcoin className="mr-2 size-4 text-[#F7931A]" /> Buy Bitcoin (BTC)
             </TabsTrigger>
             <TabsTrigger
               value="transactions"
@@ -477,7 +563,7 @@ export function UserProfile({
             </div>
 
             <div className="mt-4 grid gap-5 md:grid-cols-2">
-              {accounts.map((a) => {
+              {visibleAccounts.map((a) => {
                 const config = ACCOUNT_TYPE_CONFIG[a.account_type] || {
                   label: a.name,
                   icon: Landmark,
@@ -555,8 +641,6 @@ export function UserProfile({
                           <p className="text-xs font-medium text-muted-foreground">
                             {a.account_type === "credit"
                               ? "Current Balance Owed"
-                              : a.account_type === "investment"
-                              ? "Market Value"
                               : "Current Balance"}
                           </p>
                           <p className="mt-1 text-xl font-semibold text-muted-foreground">
@@ -590,10 +674,327 @@ export function UserProfile({
           {/* Customer Banking Move Money Drawer */}
           <div className="border-t border-border pt-8">
             <CustomerBanking
-              accounts={accounts}
+              accounts={visibleAccounts}
               hidden={hideBalances}
               onChange={() => onRefresh?.()}
             />
+          </div>
+        </TabsContent>
+
+        {/* TAB 2: BUY BITCOIN (BTC) & CRYPTO CUSTODY */}
+        <TabsContent value="bitcoin" className="space-y-6 pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="grid size-8 place-items-center rounded-full bg-[#F7931A]/20 text-[#F7931A]">
+                  <Bitcoin className="size-5" />
+                </span>
+                <h2 className="text-xl font-bold tracking-tight">Bitcoin Vault & Instant Execution</h2>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Buy, accumulate, and store physical Bitcoin backed by Eastern Trust institutional cold-storage custody.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-xs py-1">
+                <TrendingUp className="mr-1 size-3.5" /> 1 BTC = {formatCurrency(btcPrice)} (+3.15% 24h)
+              </Badge>
+              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-xs py-1">
+                <ShieldCheck className="mr-1 size-3.5" /> Insured Custody
+              </Badge>
+            </div>
+          </div>
+
+          {/* Bitcoin Portfolio Cards */}
+          <div className="grid gap-5 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-xs uppercase tracking-wider font-semibold">Total Bitcoin Holdings</span>
+                <Bitcoin className="size-5 text-[#F7931A]" />
+              </div>
+              <p className="mt-3 text-3xl font-extrabold tracking-tight text-foreground font-mono">
+                {hideBalances ? "••••••••" : `${btcHoldings.toFixed(6)} BTC`}
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
+                <span>Value:</span>
+                <strong className="text-foreground">{hideBalances ? "••••••" : formatCurrency(btcHoldings * btcPrice)}</strong>
+                <span className="text-emerald-400 font-medium ml-1">+$84.12 24h</span>
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-xs uppercase tracking-wider font-semibold">Custody Wallet Address</span>
+                <QrCode className="size-4 cursor-pointer hover:text-foreground" onClick={() => toast.info("Displaying Custody QR Code for Deposit")} />
+              </div>
+              <p className="mt-3 font-mono text-xs font-semibold text-foreground truncate bg-background p-2 rounded border border-border">
+                bc1q9a7z4m28v0e91f63j8a98f2etb09
+              </p>
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">SegWit Bech32 • Native BTC</span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard("bc1q9a7z4m28v0e91f63j8a98f2etb09", "btc-addr")}
+                  className="inline-flex items-center text-primary hover:underline font-medium"
+                >
+                  {copiedKey === "btc-addr" ? <Check className="mr-1 size-3" /> : <Copy className="mr-1 size-3" />}
+                  Copy Address
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-xs uppercase tracking-wider font-semibold">Automated Accumulation (DCA)</span>
+                <RefreshCw className="size-4 text-primary" />
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">{autoDca ? "Active Accumulator" : "Paused"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {autoDca ? `$${dcaAmount} / ${dcaFreq} from Checking` : "Schedule recurring Bitcoin buys"}
+                  </p>
+                </div>
+                <Switch
+                  checked={autoDca}
+                  onCheckedChange={(val) => {
+                    setAutoDca(val);
+                    toast.success(val ? "Automated Bitcoin accumulation enabled" : "Automated DCA paused");
+                  }}
+                />
+              </div>
+              {autoDca && (
+                <div className="mt-2 flex gap-1.5">
+                  {(["daily", "weekly", "monthly"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setDcaFreq(f)}
+                      className={`text-[10px] px-2 py-0.5 rounded capitalize ${dcaFreq === f ? "bg-primary text-primary-foreground font-semibold" : "bg-muted text-muted-foreground"}`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Interactive Buy Bitcoin Order Terminal */}
+          <div className="grid gap-6 lg:grid-cols-5">
+            <div className="lg:col-span-3 rounded-xl border border-[#F7931A]/30 bg-gradient-to-b from-card to-card/60 p-6 md:p-8 shadow-sm space-y-6">
+              <div className="flex items-center justify-between border-b border-border pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Zap className="size-4 text-[#F7931A]" /> Instant Bitcoin Purchase
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Execute market buys settled directly from your Everyday Checking account.
+                  </p>
+                </div>
+                <Badge className="bg-[#F7931A] text-white hover:bg-[#F7931A]/90 text-xs">
+                  0% Commission
+                </Badge>
+              </div>
+
+              <form onSubmit={handleBuyBitcoin} className="space-y-5">
+                {/* Funding Account Selector */}
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Paying With</Label>
+                  <div className="mt-1.5 flex items-center justify-between rounded-lg border border-border bg-background p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-9 place-items-center rounded-md border border-primary/30 bg-primary/10 text-primary">
+                        <Landmark className="size-4" />
+                      </span>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">
+                          {primaryChecking?.name || "Everyday Checking"} •••• {primaryChecking?.last_four || "9182"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Available balance: {formatCurrency(primaryChecking?.available_balance || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">
+                      Verified
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Amount Selection */}
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-muted-foreground">Purchase Amount (USD)</Label>
+                    <span className="text-xs text-muted-foreground">
+                      Available: {formatCurrency(primaryChecking?.available_balance || 0)}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="any"
+                      value={btcBuyUsd}
+                      onChange={(e) => setBtcBuyUsd(e.target.value)}
+                      placeholder="0.00"
+                      className="pl-8 text-base font-bold h-12"
+                    />
+                  </div>
+                  {/* Preset Pills */}
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {["50", "100", "250", "500", "1000", "2500"].map((amt) => (
+                      <Button
+                        key={amt}
+                        type="button"
+                        variant={btcBuyUsd === amt ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setBtcBuyUsd(amt)}
+                        className={`text-xs h-7 px-3 ${btcBuyUsd === amt ? "bg-[#F7931A] text-white hover:bg-[#F7931A]/90" : ""}`}
+                      >
+                        ${amt}
+                      </Button>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBtcBuyUsd(String(Math.floor(primaryChecking?.available_balance || 0)))}
+                      className="text-xs h-7 px-3 border-dashed"
+                    >
+                      Max
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Live Conversion Breakdown */}
+                <div className="rounded-lg bg-background/60 p-4 border border-border/60 space-y-2.5 text-xs">
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Target Execution Price</span>
+                    <span className="font-mono text-foreground">{formatCurrency(btcPrice)} / BTC</span>
+                  </div>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Eastern Trust Brokerage Fee</span>
+                    <span className="text-emerald-400 font-medium">$0.00 (Waived)</span>
+                  </div>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Custody & Settlement Fee</span>
+                    <span className="text-emerald-400 font-medium">$0.00 (Waived)</span>
+                  </div>
+                  <div className="border-t border-border pt-2 flex justify-between items-center font-semibold text-foreground">
+                    <span>Estimated Bitcoin Received</span>
+                    <span className="font-mono text-base text-[#F7931A]">
+                      {((parseFloat(btcBuyUsd) || 0) / btcPrice).toFixed(8)} BTC
+                    </span>
+                  </div>
+                </div>
+
+                {/* Submit Buy CTA */}
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={btcBuying || !(parseFloat(btcBuyUsd) > 0)}
+                  className="w-full bg-[#F7931A] text-white hover:bg-[#F7931A]/90 font-bold h-12 text-sm shadow-md"
+                >
+                  {btcBuying ? (
+                    <span className="flex items-center gap-2">
+                      <RefreshCw className="size-4 animate-spin" /> Executing Order on Mainnet…
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Bitcoin className="size-5" /> Buy {((parseFloat(btcBuyUsd) || 0) / btcPrice).toFixed(6)} BTC Now
+                    </span>
+                  )}
+                </Button>
+                <p className="text-[11px] text-center text-muted-foreground">
+                  By clicking buy, you authorize an immediate debit from your Everyday Checking account. Cryptocurrencies are held in insured cold-storage.
+                </p>
+              </form>
+            </div>
+
+            {/* Bitcoin Security & Custody Architecture Details */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                  <ShieldCheck className="size-4 text-primary" /> Institutional Bitcoin Custody
+                </h4>
+                <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
+                  <div className="flex gap-2.5">
+                    <span className="size-1.5 rounded-full bg-[#F7931A] mt-1.5 shrink-0" />
+                    <p><strong>100% Cold-Storage:</strong> Your Bitcoin private keys are generated in multi-signature offline hardware security modules (HSM).</p>
+                  </div>
+                  <div className="flex gap-2.5">
+                    <span className="size-1.5 rounded-full bg-[#F7931A] mt-1.5 shrink-0" />
+                    <p><strong>Direct Integration:</strong> Easily sell or convert Bitcoin back into your checking account funds anytime with zero waiting period.</p>
+                  </div>
+                  <div className="flex gap-2.5">
+                    <span className="size-1.5 rounded-full bg-[#F7931A] mt-1.5 shrink-0" />
+                    <p><strong>Tax & IRS Automated Reporting:</strong> All executed orders generate automated Form 8949 and 1099-DA compliant crypto tax logs.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-6">
+                <h4 className="text-sm font-semibold text-foreground mb-3">Market Insights</h4>
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">24h High</span>
+                    <span className="font-mono text-foreground">$65,210.00</span>
+                  </div>
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">24h Low</span>
+                    <span className="font-mono text-foreground">$63,490.00</span>
+                  </div>
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">24h Trading Volume</span>
+                    <span className="font-mono text-foreground">$28.4 Billion</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Dominance</span>
+                    <span className="font-mono text-foreground">58.2%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bitcoin Transaction Settlement History */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="text-base font-bold text-foreground mb-4">Bitcoin Order History</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-left text-muted-foreground">
+                    <th className="pb-3 font-medium">Type</th>
+                    <th className="pb-3 font-medium">Timestamp</th>
+                    <th className="pb-3 font-medium">Bitcoin Amount</th>
+                    <th className="pb-3 font-medium">Total Paid</th>
+                    <th className="pb-3 font-medium">Execution Price</th>
+                    <th className="pb-3 font-medium">Status</th>
+                    <th className="pb-3 font-medium text-right">Blockchain Reference</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {btcTransactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-muted/30">
+                      <td className="py-3 font-bold text-emerald-400 flex items-center gap-1.5">
+                        <ArrowDownRight className="size-3.5" /> BUY
+                      </td>
+                      <td className="py-3 text-muted-foreground">{tx.date}</td>
+                      <td className="py-3 font-mono font-bold text-foreground">+{tx.amountBtc.toFixed(6)} BTC</td>
+                      <td className="py-3 font-semibold text-foreground">{formatCurrency(tx.amountUsd)}</td>
+                      <td className="py-3 font-mono text-muted-foreground">{formatCurrency(tx.price)}</td>
+                      <td className="py-3">
+                        <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px]">
+                          {tx.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3 font-mono text-right text-muted-foreground">{tx.txHash}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </TabsContent>
 
@@ -1346,7 +1747,7 @@ export function UserProfile({
                   <div>
                     <p className="text-sm font-medium">Automatic Overdraft Protection</p>
                     <p className="text-xs text-muted-foreground">
-                      Cover checking shortfalls from High-Yield Savings
+                      Cover checking shortfalls with courtesy overdraft buffer
                     </p>
                   </div>
                   <Switch

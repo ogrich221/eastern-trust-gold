@@ -74,12 +74,14 @@ function Dashboard() {
         .select("id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft")
         .eq("user_id", user.id);
 
-      const list = ((data ?? []) as ProfileAccount[]).map((a) => ({
-        ...a,
-        available_balance: Number(a.available_balance),
-        current_balance: Number(a.current_balance),
-        credit_limit: a.credit_limit === null ? null : Number(a.credit_limit),
-      }));
+      const list = ((data ?? []) as ProfileAccount[])
+        .filter((a) => a.account_type !== "savings" && a.account_type !== "investment")
+        .map((a) => ({
+          ...a,
+          available_balance: Number(a.available_balance),
+          current_balance: Number(a.current_balance),
+          credit_limit: a.credit_limit === null ? null : Number(a.credit_limit),
+        }));
 
       list.sort((a, b) => order.indexOf(a.account_type) - order.indexOf(b.account_type));
       setAccounts(list);

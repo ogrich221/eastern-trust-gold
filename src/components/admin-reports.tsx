@@ -85,8 +85,8 @@ export function AdminReports({ customers, auditLogs, emailOf }: AdminReportsProp
       });
     });
 
-    const totalLiquidDeposits = checkingBal + savingsBal;
-    const totalAssets = totalLiquidDeposits + investmentBal;
+    const totalLiquidDeposits = checkingBal;
+    const totalAssets = checkingBal;
 
     return {
       checkingCount, checkingBal,
@@ -157,7 +157,7 @@ export function AdminReports({ customers, auditLogs, emailOf }: AdminReportsProp
             <Wallet className="size-4 text-primary" />
           </div>
           <p className="mt-2 text-2xl font-bold text-primary font-display">{fmt(stats.totalLiquidDeposits)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{stats.checkingCount + stats.savingsCount} Checking & Savings accounts</p>
+          <p className="mt-1 text-xs text-muted-foreground">{stats.checkingCount} Everyday Checking accounts</p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
@@ -166,7 +166,7 @@ export function AdminReports({ customers, auditLogs, emailOf }: AdminReportsProp
             <TrendingUp className="size-4 text-emerald-400" />
           </div>
           <p className="mt-2 text-2xl font-bold text-foreground font-display">{fmt(stats.totalAssets)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Including wealth portfolios</p>
+          <p className="mt-1 text-xs text-muted-foreground">Everyday Checking liquid assets</p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
@@ -228,21 +228,12 @@ export function AdminReports({ customers, auditLogs, emailOf }: AdminReportsProp
               </tr>
               <tr>
                 <td className="py-3.5 px-4 font-medium flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-emerald-400" /> High-Yield Savings
+                  <span className="size-2 rounded-full bg-[#F7931A]" /> Bitcoin (BTC) Vault Custody
                 </td>
-                <td className="py-3.5 px-4">{stats.savingsCount}</td>
-                <td className="py-3.5 px-4 font-semibold">{fmt(stats.savingsBal)}</td>
-                <td className="py-3.5 px-4 text-muted-foreground">{fmt(stats.savingsCount ? stats.savingsBal / stats.savingsCount : 0)}</td>
-                <td className="py-3.5 px-4 text-muted-foreground">{stats.totalAssets ? ((stats.savingsBal / stats.totalAssets) * 100).toFixed(1) : 0}%</td>
-              </tr>
-              <tr>
-                <td className="py-3.5 px-4 font-medium flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-blue-400" /> Wealth Management
-                </td>
-                <td className="py-3.5 px-4">{stats.investmentCount}</td>
-                <td className="py-3.5 px-4 font-semibold">{fmt(stats.investmentBal)}</td>
-                <td className="py-3.5 px-4 text-muted-foreground">{fmt(stats.investmentCount ? stats.investmentBal / stats.investmentCount : 0)}</td>
-                <td className="py-3.5 px-4 text-muted-foreground">{stats.totalAssets ? ((stats.investmentBal / stats.totalAssets) * 100).toFixed(1) : 0}%</td>
+                <td className="py-3.5 px-4">{customers.length}</td>
+                <td className="py-3.5 px-4 font-semibold">{fmt(customers.length * 2710.74)}</td>
+                <td className="py-3.5 px-4 text-muted-foreground">{fmt(2710.74)}</td>
+                <td className="py-3.5 px-4 text-muted-foreground">Digital Assets</td>
               </tr>
               <tr>
                 <td className="py-3.5 px-4 font-medium flex items-center gap-2">
