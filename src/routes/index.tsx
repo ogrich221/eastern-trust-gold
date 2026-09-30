@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { submitHomepageInquiry } from "@/lib/admin.functions";
 import {
   ArrowRight,
   Building2,
@@ -43,20 +45,25 @@ function Index() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", department: "general", message: "" });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const sendInquiry = useServerFn(submitHomepageInquiry);
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) {
       toast.error("Please fill in all required fields.");
       return;
     }
     setSending(true);
-    setTimeout(() => {
-      setSending(false);
+    try {
+      await sendInquiry({ data: form });
       setSent(true);
       toast.success("Inquiry received! A dedicated Eastern Trust advisor will contact you within 2 hours.");
       setForm({ name: "", email: "", phone: "", department: "general", message: "" });
-    }, 800);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to submit inquiry. Please try again.");
+    } finally {
+      setSending(false);
+    }
   };
 
   const services: { icon: LucideIcon; title: string; copy: string; to: "/business" | "/products" | "/cards" | "/loans" }[] = [

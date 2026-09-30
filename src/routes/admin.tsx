@@ -7,6 +7,7 @@ import {
   Eye,
   LogIn,
   LogOut,
+  Mail,
   MailCheck,
   Plus,
   Search,
@@ -202,9 +203,19 @@ function AdminPortal({ adminName }: { adminName: string }) {
   }, [customers.data]);
 
   const filtered = useMemo(() => {
-    const s = q.toLowerCase();
+    const s = q.toLowerCase().trim();
     return (customers.data ?? []).filter((c) => {
-      const matchText = [c.email, c.profile?.first_name, c.profile?.last_name, c.profile?.phone, c.id].some((v) =>
+      const fullName = `${c.profile?.first_name ?? ""} ${c.profile?.last_name ?? ""}`.trim();
+      const matchText = [
+        c.email,
+        c.profile?.first_name,
+        c.profile?.last_name,
+        fullName,
+        c.profile?.phone,
+        c.profile?.address,
+        c.profile?.city,
+        c.id,
+      ].some((v) =>
         v?.toLowerCase().includes(s)
       );
       if (!matchText) return false;
@@ -297,6 +308,12 @@ function AdminPortal({ adminName }: { adminName: string }) {
                 className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
               >
                 <Users className="mr-2 size-4" /> Customer Management
+              </TabsTrigger>
+              <TabsTrigger
+                value="inquiries"
+                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+              >
+                <Mail className="mr-2 size-4" /> Homepage Inquiries
               </TabsTrigger>
               <TabsTrigger
                 value="transactions"
@@ -435,6 +452,11 @@ function AdminPortal({ adminName }: { adminName: string }) {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* TAB: HOMEPAGE INQUIRIES */}
+          <TabsContent value="inquiries" className="mt-6">
+            <HomepageInquiries auditLogs={audit.data ?? []} />
           </TabsContent>
 
           {/* TAB 2: TRANSACTION MONITORING */}
@@ -731,6 +753,26 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             </Button>
           </div>
         </div>
+
+        {!c.confirmed && (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-300">
+            <div className="flex items-center gap-2.5">
+              <MailCheck className="size-4 shrink-0 text-amber-400" />
+              <div>
+                <p className="font-semibold text-foreground">Email Confirmation Pending</p>
+                <p className="text-muted-foreground">This customer registered online. Confirming their account activates full login capabilities immediately.</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              disabled={confirmM.isPending}
+              onClick={() => confirmM.mutate({ userId: c.id })}
+              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs h-8"
+            >
+              <CheckCircle2 className="mr-1.5 size-3.5" /> Confirm &amp; Activate Customer
+            </Button>
+          </div>
+        )}
       </section>
 
       {/* Detail Sub Tabs */}
@@ -1362,3 +1404,71 @@ function NewCustomerDialog() {
     </Dialog>
   );
 }
+
+function HomepageInquiries({ auditLogs }: { auditLogs: { id: string; action: string; details: string; created_at: string }[] }) {
+  const inquiries = useMemo(() => {
+    return auditLogs
+      .filter((r) => r.action === "homepage_inquiry")
+      .map((r) => {
+        let parsed: { name?: string; email?: string; phone?: string; department?: string; message?: string } = {};
+        try {
+          parsed = JSON.parse(r.details);
+        } catch {}
+        return {
+          id: r.id,
+          created_at: r.created_at,
+          ...parsed,
+        };
+      });
+  }, [auditLogs]);
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">Homepage Client Inquiries</h2>
+          <p className="text-xs text-muted-foreground">
+            Inquiries and leads submitted directly through the Eastern Trust Bank website contact portal.
+          </p>
+        </div>
+        <Badge variant="outline" className="text-xs">{inquiries.length} received</Badge>
+      </div>
+
+      {inquiries.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
+          <Mail className="mx-auto size-10 text-muted-foreground/60" />
+          <h3 className="mt-3 text-base font-semibold text-foreground">No Homepage Inquiries Yet</h3>
+          <p className="mt-1 text-xs">Direct messages submitted from the public homepage will appear here instantly.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+          {inquiries.map((inq) => (
+            <div key={inq.id} className="p-5 hover:bg-accent/40 transition-colors space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-foreground">{inq.name || "Anonymous Visitor"}</span>
+                  {inq.department && (
+                    <Badge variant="outline" className="text-[10px] capitalize">
+                      {inq.department}
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(inq.created_at).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground font-mono">
+                {inq.email && <span>Email: <a href={`mailto:${inq.email}`} className="text-primary hover:underline">{inq.email}</a></span>}
+                {inq.phone && <span>Phone: <a href={`tel:${inq.phone}`} className="text-foreground hover:underline">{inq.phone}</a></span>}
+              </div>
+              <p className="text-xs text-foreground/90 bg-muted/30 p-3 rounded-md border border-border/50 whitespace-pre-wrap">
+                {inq.message || "—"}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+

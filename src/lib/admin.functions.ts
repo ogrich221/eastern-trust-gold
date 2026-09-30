@@ -56,17 +56,95 @@ export const listCustomers = createServerFn({ method: "GET" })
       admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft"),
       admin.from("user_roles").select("user_id,role"),
     ]);
-    return users.users.map((u) => ({
-      id: u.id,
-      email: u.email ?? "",
-      created_at: u.created_at,
-      last_sign_in_at: u.last_sign_in_at ?? null,
-      confirmed: Boolean(u.email_confirmed_at),
-      banned: Boolean((u as { banned_until?: string | null }).banned_until && new Date((u as { banned_until: string }).banned_until) > new Date()),
-      is_admin: (roles ?? []).some((r) => r.user_id === u.id && r.role === "admin"),
-      profile: (profiles ?? []).find((p) => p.id === u.id) ?? null,
-      accounts: (accounts ?? []).filter((a) => a.user_id === u.id).map((a) => ({ ...a, available_balance: Number(a.available_balance), current_balance: Number(a.current_balance), credit_limit: a.credit_limit === null ? null : Number(a.credit_limit) })),
-    }));
+
+    const profileList = [...(profiles ?? [])];
+    const accountList = [...(accounts ?? [])];
+
+    // Auto-heal profiles and bank accounts for newly registered users
+    for (const u of users.users) {
+      let prof = profileList.find((p) => p.id === u.id);
+      const meta = (u.user_metadata ?? {}) as Record<string, any>;
+      const pending = (meta.pending_profile ?? meta) as Record<string, any>;
+
+      const hasMetaInfo = Boolean(
+        pending.first_name || pending.last_name || meta.first_name || meta.last_name || meta.full_name
+      );
+
+      if (!prof && hasMetaInfo) {
+        const firstName = String(pending.first_name || meta.first_name || meta.full_name?.split(" ")[0] || "Client").trim();
+        const lastName = String(pending.last_name || meta.last_name || meta.full_name?.split(" ").slice(1).join(" ") || "").trim();
+        const phone = String(pending.phone || meta.phone || "").trim();
+        const address = String(pending.address || meta.address || "").trim();
+        const city = String(pending.city || meta.city || "").trim();
+        const postalCode = String(pending.postal_code || meta.postal_code || "").trim();
+
+        const synthesizedProfile = {
+          id: u.id,
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+          address,
+          city,
+          postal_code: postalCode,
+          created_at: u.created_at,
+          security_question_one: String(pending.security_question_one || "What was the name of your first school?"),
+          security_question_two: String(pending.security_question_two || "What city did your parents meet in?"),
+        };
+        profileList.push(synthesizedProfile);
+
+        // Asynchronously persist to profiles table so subsequent queries find it
+        admin.from("profiles").insert({
+          ...synthesizedProfile,
+          security_answer_one_hash: String(pending.security_answer_one_hash || ""),
+          security_answer_two_hash: String(pending.security_answer_two_hash || ""),
+        }).catch(() => {});
+      }
+
+      // Auto-provision initial checking account if user has none
+      const userAccounts = accountList.filter((a) => a.user_id === u.id);
+      if (userAccounts.length === 0) {
+        const last_four = String(Math.floor(1000 + Math.random() * 9000));
+        const initialChecking = {
+          user_id: u.id,
+          account_type: "checking",
+          name: "Everyday Checking",
+          last_four,
+          available_balance: 0,
+          current_balance: 0,
+          credit_limit: null,
+          currency: "USD",
+          allow_overdraft: false,
+        };
+        accountList.push({
+          id: "temp-" + u.id,
+          ...initialChecking,
+        } as any);
+        admin.from("bank_accounts").insert(initialChecking).catch(() => {});
+      }
+    }
+
+    return users.users.map((u) => {
+      const prof = profileList.find((p) => p.id === u.id) ?? null;
+      const userAccounts = accountList.filter((a) => a.user_id === u.id).map((a) => ({
+        ...a,
+        available_balance: Number(a.available_balance || 0),
+        current_balance: Number(a.current_balance || 0),
+        credit_limit: a.credit_limit === null ? null : Number(a.credit_limit),
+      }));
+
+      return {
+        id: u.id,
+        email: u.email ?? "",
+        created_at: u.created_at,
+        last_sign_in_at: u.last_sign_in_at ?? null,
+        confirmed: Boolean(u.email_confirmed_at),
+        banned: Boolean((u as { banned_until?: string | null }).banned_until && new Date((u as { banned_until: string }).banned_until) > new Date()),
+        is_admin: (roles ?? []).some((r) => r.user_id === u.id && r.role === "admin"),
+        profile: prof,
+        accounts: userAccounts,
+        metadata: u.user_metadata,
+      };
+    });
   });
 
 export const listAuditLog = createServerFn({ method: "GET" })
@@ -495,3 +573,95 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
       recentTxnCount: recent24hTxns.length,
     };
   });
+
+export const submitHomepageInquiry = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    name: z.string().trim().min(1).max(100),
+    email: z.string().trim().email().max(255),
+    phone: z.string().trim().max(40).optional(),
+    department: z.string().trim().max(50).optional(),
+    message: z.string().trim().min(1).max(2000),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("admin_audit_log").insert({
+      admin_id: NIL,
+      target_user_id: null,
+      action: "homepage_inquiry",
+      details: data as never,
+    });
+    if (error) console.error("Could not record homepage inquiry:", error);
+    return { ok: true };
+  });
+
+export const registerCustomerPublic = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    email: z.string().trim().email().max(255),
+    password: z.string().min(10).max(72),
+    ...profileFields,
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { email, password, ...p } = data;
+    const profRow = await profileRow(p);
+
+    // Try creating directly with admin auth so email is confirmed immediately
+    const { data: created, error: adminErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        pending_profile: profRow,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        phone: p.phone,
+        full_name: `${p.first_name} ${p.last_name}`,
+      },
+    });
+
+    let userId = created?.user?.id;
+
+    if (adminErr?.message?.toLowerCase().includes("already") || adminErr?.message?.toLowerCase().includes("exists")) {
+      throw new Error("A customer with that email address already exists.");
+    }
+
+    if (!userId) {
+      // Fallback: standard sign up
+      const { data: signUpData, error: signErr } = await supabaseAdmin.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            pending_profile: profRow,
+            first_name: p.first_name,
+            last_name: p.last_name,
+            phone: p.phone,
+            full_name: `${p.first_name} ${p.last_name}`,
+          },
+        },
+      });
+      if (signErr) throw new Error(signErr.message);
+      userId = signUpData?.user?.id;
+    }
+
+    if (userId) {
+      // Ensure profile row exists
+      await supabaseAdmin.from("profiles").insert({ id: userId, ...profRow }).catch(() => {});
+      // Provision initial checking account
+      const last_four = String(Math.floor(1000 + Math.random() * 9000));
+      await supabaseAdmin.from("bank_accounts").insert({
+        user_id: userId,
+        account_type: "checking",
+        name: "Everyday Checking",
+        last_four,
+        available_balance: 0,
+        current_balance: 0,
+        credit_limit: null,
+        currency: "USD",
+        allow_overdraft: false,
+      }).catch(() => {});
+    }
+
+    return { ok: true, userId };
+  });
+
