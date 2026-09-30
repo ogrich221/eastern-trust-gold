@@ -14,9 +14,9 @@ const requireAdmin = createMiddleware({ type: "function" }).server(async ({ next
 async function assertAdmin(ctx: { adminName: string }) {
   const { readCookie, SERVICE_ROLE_COOKIE } = await import("./admin-session.server");
   const cookieKey = readCookie(getRequestHeader("cookie"), SERVICE_ROLE_COOKIE);
-  const SUPABASE_URL = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || "https://fhzpazqeiqebhhbxwjti.supabase.co";
+  const SUPABASE_URL = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || "https://igovxokejysqqpvyajsk.supabase.co";
   const serviceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'] || cookieKey;
-  const fallbackKey = process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || "sb_publishable_wtR3ymbPN-qiqMJexwi3CQ_iYe1CE7r";
+  const fallbackKey = process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || "sb_publishable_truIFx3Nx1YTS0LAPcAchg_7-zA7PK8";
   const activeKey = serviceKey || fallbackKey;
 
   const { createClient } = await import("@supabase/supabase-js");
@@ -434,8 +434,8 @@ export const createCustomer = createServerFn({ method: "POST" })
       }
 
       // 2. Direct GoTrue REST API fallback (always works with API key)
-      const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"] || "https://fhzpazqeiqebhhbxwjti.supabase.co";
-      const key = process.env["SUPABASE_SERVICE_ROLE_KEY"] || process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || "sb_publishable_wtR3ymbPN-qiqMJexwi3CQ_iYe1CE7r";
+      const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"] || "https://igovxokejysqqpvyajsk.supabase.co";
+      const key = process.env["SUPABASE_SERVICE_ROLE_KEY"] || process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || "sb_publishable_truIFx3Nx1YTS0LAPcAchg_7-zA7PK8";
 
       const res = await fetch(`${url}/auth/v1/signup`, {
         method: "POST",
