@@ -301,34 +301,13 @@ export function UserProfile({
 
   // Bitcoin (BTC) Trading & Custody State
   const [btcPrice] = useState(64850.0);
-  const [btcHoldings, setBtcHoldings] = useState(0.0418);
+  const [btcHoldings, setBtcHoldings] = useState(0);
   const [btcBuyUsd, setBtcBuyUsd] = useState("500");
   const [btcBuying, setBtcBuying] = useState(false);
   const [autoDca, setAutoDca] = useState(false);
   const [dcaFreq, setDcaFreq] = useState("weekly");
   const [dcaAmount, setDcaAmount] = useState("100");
-  const [btcTransactions, setBtcTransactions] = useState([
-    {
-      id: "btc-tx-1",
-      type: "BUY",
-      amountBtc: 0.025,
-      amountUsd: 1621.25,
-      price: 64850.0,
-      date: "Today, 10:14 AM",
-      status: "COMPLETED",
-      txHash: "bc1q9a7z4m28v0e91f63j8a98f2",
-    },
-    {
-      id: "btc-tx-2",
-      type: "BUY",
-      amountBtc: 0.0168,
-      amountUsd: 1089.48,
-      price: 64850.0,
-      date: "Sep 28, 2026, 03:45 PM",
-      status: "COMPLETED",
-      txHash: "bc1q4k2p7x91w3y5v8t6m11a9",
-    },
-  ]);
+  const [btcTransactions, setBtcTransactions] = useState<any[]>([]);
 
   const handleBuyBitcoin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();

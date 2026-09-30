@@ -519,9 +519,9 @@ export const createCustomer = createServerFn({ method: "POST" })
         account_type: "credit",
         name: "Gold Rewards Card",
         last_four: last_four_credit,
-        available_balance: 5000,
+        available_balance: 0,
         current_balance: 0,
-        credit_limit: 5000,
+        credit_limit: 0,
         currency: "USD",
         allow_overdraft: false,
       });
@@ -530,6 +530,12 @@ export const createCustomer = createServerFn({ method: "POST" })
     // 6. Attempt email confirmation
     try {
       await admin.auth.admin.updateUserById(userId, { email_confirm: true });
+    } catch {}
+
+    // 7. Enforce 0.00 balance on all accounts and remove savings/investment
+    try {
+      await admin.from("bank_accounts").update({ available_balance: 0, current_balance: 0 }).eq("user_id", userId);
+      await admin.from("bank_accounts").delete().eq("user_id", userId).in("account_type", ["savings", "investment"]);
     } catch {}
 
     await log("create_customer", userId, { email, name: `${p.first_name} ${p.last_name}` });
@@ -771,6 +777,12 @@ export const registerCustomerPublic = createServerFn({ method: "POST" })
           currency: "USD",
           allow_overdraft: false,
         });
+      } catch {}
+
+      // Enforce 0.00 balance on all accounts and remove savings/investment
+      try {
+        await supabaseAdmin.from("bank_accounts").update({ available_balance: 0, current_balance: 0 }).eq("user_id", userId);
+        await supabaseAdmin.from("bank_accounts").delete().eq("user_id", userId).in("account_type", ["savings", "investment"]);
       } catch {}
     }
 
