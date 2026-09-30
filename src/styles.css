@@ -159,7 +159,7 @@
   background: linear-gradient(90deg, oklch(0.08 0.01 80 / 0.98) 0%, oklch(0.08 0.01 80 / 0.82) 42%, oklch(0.08 0.01 80 / 0.14) 76%);
 }
 
-/* Hide Netlify Drawer, HUD, and "Powered by Netlify" badges */
+/* Hide Netlify & Lovable badges, watermarks, and drawer widgets */
 iframe[src*="netlify"],
 iframe[id*="netlify"],
 #netlify-hud,
@@ -168,7 +168,14 @@ div[data-netlify-feedback],
 div[class*="netlify-drawer"],
 div[class*="netlify-badge"],
 [data-netlify-site-id],
-[id*="netlify-hud"] {
+[id*="netlify-hud"],
+#lovable-badge,
+[id*="lovable"],
+[class*="lovable-badge"],
+[class*="lovable"],
+[data-lovable],
+a[href*="lovable.dev"],
+iframe[src*="lovable"] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;

@@ -88,7 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Personal and business banking built on lasting trust." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@EasternTrustBank" },
     ],
     links: [
       {
@@ -144,7 +144,7 @@ function NetlifyDrawerRemover() {
     if (typeof window === "undefined") return;
     const purge = () => {
       const els = document.querySelectorAll(
-        "script[src*='netlify'], iframe[src*='netlify'], #netlify-hud, #netlify-hud-sdk, [data-netlify-site-id], div[class*='netlify-drawer'], div[class*='netlify-badge'], div[data-netlify-feedback]"
+        "script[src*='netlify'], iframe[src*='netlify'], #netlify-hud, #netlify-hud-sdk, [data-netlify-site-id], div[class*='netlify-drawer'], div[class*='netlify-badge'], div[data-netlify-feedback], #lovable-badge, [id*='lovable'], [class*='lovable'], a[href*='lovable.dev'], [data-lovable], iframe[src*='lovable']"
       );
       els.forEach((el) => {
         try {
