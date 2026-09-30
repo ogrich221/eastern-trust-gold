@@ -175,14 +175,25 @@ function Index() {
                 <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
                   24/7 Dedicated Client Hotline with direct banker routing and zero automated phone trees.
                 </p>
-                <div className="mt-4 space-y-1">
-                  <p className="text-sm font-semibold text-primary font-mono">+1 (800) 582-9140</p>
-                  <p className="text-xs text-muted-foreground">Toll-free • Available 24/7</p>
+                <div className="mt-4 space-y-2">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">Primary Hotline (24/7):</p>
+                    <p className="text-sm font-semibold text-primary font-mono">+1 800 582 EWB</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">Priority Line:</p>
+                    <p className="text-sm font-semibold text-foreground font-mono">+ 1 900 682 EWB</p>
+                  </div>
                 </div>
               </div>
-              <Button asChild size="sm" variant="outline" className="mt-6 w-full text-xs">
-                <a href="tel:+18005829140">Call Client Care</a>
-              </Button>
+              <div className="mt-6 flex flex-col gap-2">
+                <Button asChild size="sm" variant="outline" className="w-full text-xs">
+                  <a href="tel:+1800582EWB">Call Primary Hotline</a>
+                </Button>
+                <Button asChild size="sm" variant="ghost" className="w-full text-xs border border-border">
+                  <a href="tel:+1900682EWB">Call Priority Line</a>
+                </Button>
+              </div>
             </div>
 
             {/* Email */}
@@ -405,11 +416,11 @@ function Index() {
               <p className="font-semibold text-foreground uppercase tracking-wider text-[11px] mb-3">Customer Support</p>
               <ul className="space-y-2">
                 <li><Link to="/help" className="hover:text-primary transition-colors">Help & Support Center</Link></li>
-                <li><a href="tel:+18005829140" className="hover:text-primary transition-colors">1-800-582-9140 (24/7)</a></li>
+                <li><a href="tel:+1800582EWB" className="hover:text-primary transition-colors">+1 800 582 EWB (24/7)</a></li>
+                <li><a href="tel:+1900682EWB" className="hover:text-primary transition-colors">+ 1 900 682 EWB (Priority)</a></li>
                 <li><a href="mailto:support@easterntrustbank.co" className="hover:text-primary transition-colors">support@easterntrustbank.co</a></li>
                 <li><Link to="/rates" className="hover:text-primary transition-colors">Rates & APR Schedule</Link></li>
                 <li><Link to="/auth" className="hover:text-primary transition-colors">Customer Online Portal</Link></li>
-                <li><Link to="/admin" className="hover:text-primary transition-colors">Staff Admin Access</Link></li>
               </ul>
             </div>
 

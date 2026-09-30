@@ -9,7 +9,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Menu, ShieldCheck, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -158,11 +158,10 @@ function RootComponent() {
           </nav>
           <div className="hidden items-center gap-3 lg:flex">
             {signedIn ? <><Button asChild variant="outline"><Link to="/dashboard">My account</Link></Button><Button onClick={signOut}>Sign out</Button></> : <><Button asChild variant="ghost"><Link to="/auth">Log in</Link></Button><Button asChild><Link to="/signup">Open an account</Link></Button></>}
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground"><Link to="/admin"><ShieldCheck /> Admin</Link></Button>
           </div>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X /> : <Menu />}</Button>
         </div>
-        {menuOpen && <nav className="border-t border-border px-5 py-5 lg:hidden">{links.map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)} className="block border-b border-border py-3 text-sm">{label}</Link>)}<div className="mt-4 flex gap-3"><Button asChild variant="outline" className="flex-1"><Link to="/auth">Log in</Link></Button><Button asChild className="flex-1"><Link to="/signup">Open account</Link></Button></div><Button asChild variant="ghost" className="mt-3 w-full"><Link to="/admin" onClick={() => setMenuOpen(false)}><ShieldCheck /> Admin login</Link></Button></nav>}
+        {menuOpen && <nav className="border-t border-border px-5 py-5 lg:hidden">{links.map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)} className="block border-b border-border py-3 text-sm">{label}</Link>)}<div className="mt-4 flex gap-3"><Button asChild variant="outline" className="flex-1"><Link to="/auth">Log in</Link></Button><Button asChild className="flex-1"><Link to="/signup">Open account</Link></Button></div></nav>}
       </header>
       <Outlet />
     </QueryClientProvider>
