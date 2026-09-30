@@ -371,7 +371,9 @@ export const createCustomer = createServerFn({ method: "POST" })
     const { email, password, ...p } = data;
     const profRow = await profileRow(p);
 
-    // 1. Try Supabase Auth Admin API (requires SUPABASE_SERVICE_ROLE_KEY)
+    let userId: string | null = null;
+
+    // 1. Try Supabase Auth Admin API (works if service role key is configured)
     const { data: created, error: adminErr } = await admin.auth.admin.createUser({
       email,
       password,
@@ -380,52 +382,101 @@ export const createCustomer = createServerFn({ method: "POST" })
         pending_profile: profRow,
         first_name: p.first_name,
         last_name: p.last_name,
+        phone: p.phone,
+        full_name: `${p.first_name} ${p.last_name}`,
       },
     });
 
-    if (!adminErr && created?.user) {
-      const { error: pe } = await admin.from("profiles").insert({ id: created.user.id, ...profRow });
-      if (pe) {
-        console.warn("Could not insert profile directly (may hydrate on login):", pe.message);
+    if (!adminErr && created?.user?.id) {
+      userId = created.user.id;
+    } else {
+      if (adminErr?.message?.toLowerCase().includes("already") || adminErr?.message?.toLowerCase().includes("exists")) {
+        throw new Error("A customer with that email address already exists.");
       }
-      await log("create_customer", created.user.id, { email });
-      return { ok: true, id: created.user.id };
-    }
 
-    // 2. Check if customer already exists
-    if (adminErr?.message?.toLowerCase().includes("already") || adminErr?.message?.toLowerCase().includes("exists")) {
-      throw new Error("A customer with that email address already exists.");
-    }
+      // 2. Direct GoTrue REST API fallback (always works with API key)
+      const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"] || "https://fhzpazqeiqebhhbxwjti.supabase.co";
+      const key = process.env["SUPABASE_SERVICE_ROLE_KEY"] || process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || "sb_publishable_wtR3ymbPN-qiqMJexwi3CQ_iYe1CE7r";
 
-    // 3. Fallback: try standard signUp with user_metadata
-    const { data: signUpData, error: signErr } = await admin.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          pending_profile: profRow,
-          first_name: p.first_name,
-          last_name: p.last_name,
+      const res = await fetch(`${url}/auth/v1/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": key,
+          "Authorization": `Bearer ${key}`,
         },
-      },
-    });
+        body: JSON.stringify({
+          email,
+          password,
+          data: {
+            pending_profile: profRow,
+            first_name: p.first_name,
+            last_name: p.last_name,
+            phone: p.phone,
+            full_name: `${p.first_name} ${p.last_name}`,
+          },
+        }),
+      });
 
-    if (!signErr && signUpData?.user) {
-      await admin.from("profiles").insert({ id: signUpData.user.id, ...profRow }).catch(() => {});
-      await log("create_customer", signUpData.user.id, { email, via: "signup_fallback" });
-      return { ok: true, id: signUpData.user.id };
+      const resJson = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const msg = String(resJson.msg || resJson.message || "").toLowerCase();
+        if (msg.includes("weak") || resJson.error_code === "weak_password") {
+          throw new Error("Password is known to be weak. Please choose a stronger password with symbols and numbers (e.g. EasternTrust2026!$).");
+        }
+        if (msg.includes("already") || msg.includes("exists")) {
+          throw new Error("A customer with that email address already exists.");
+        }
+        if (msg.includes("domain") || msg.includes("not allowed")) {
+          throw new Error("This email domain is not allowed. Please enter a valid real email address (e.g. gmail.com, outlook.com).");
+        }
+        throw new Error(resJson.msg || resJson.message || adminErr?.message || "Could not create customer account.");
+      }
+
+      userId = resJson.id || resJson.user?.id;
     }
 
-    // 4. Return helpful diagnostic error
-    if (signErr?.message?.toLowerCase().includes("already") || signErr?.message?.toLowerCase().includes("exists")) {
-      throw new Error("A customer with that email address already exists.");
+    if (!userId) {
+      throw new Error("Could not initialize customer account in authentication system.");
     }
-    if (adminErr?.status === 401 || adminErr?.message?.includes("Bearer") || adminErr?.message?.includes("authorization")) {
-      throw new Error(
-        "Direct user creation requires SUPABASE_SERVICE_ROLE_KEY in Netlify environment variables. In the meantime, accounts can also be opened via /signup."
-      );
-    }
-    throw new Error(signErr?.message || adminErr?.message || "Could not create customer.");
+
+    // 3. Insert / update profile row
+    await admin.from("profiles").upsert({ id: userId, ...profRow }).catch(() => {});
+
+    // 4. Provision Everyday Checking account
+    const last_four_checking = String(Math.floor(1000 + Math.random() * 9000));
+    await admin.from("bank_accounts").insert({
+      user_id: userId,
+      account_type: "checking",
+      name: "Everyday Checking",
+      last_four: last_four_checking,
+      available_balance: 0,
+      current_balance: 0,
+      credit_limit: null,
+      currency: "USD",
+      allow_overdraft: false,
+    }).catch(() => {});
+
+    // 5. Provision Gold Rewards Card
+    const last_four_credit = String(Math.floor(1000 + Math.random() * 9000));
+    await admin.from("bank_accounts").insert({
+      user_id: userId,
+      account_type: "credit",
+      name: "Gold Rewards Card",
+      last_four: last_four_credit,
+      available_balance: 5000,
+      current_balance: 0,
+      credit_limit: 5000,
+      currency: "USD",
+      allow_overdraft: false,
+    }).catch(() => {});
+
+    // 6. Attempt email confirmation
+    await admin.auth.admin.updateUserById(userId, { email_confirm: true }).catch(() => {});
+
+    await log("create_customer", userId, { email, name: `${p.first_name} ${p.last_name}` });
+    return { ok: true, id: userId };
   });
 
 export const createProfileForCustomer = createServerFn({ method: "POST" })

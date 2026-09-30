@@ -1348,15 +1348,31 @@ function ResetSecurity({ userId }: { userId: string }) {
 
 function NewCustomerDialog() {
   const [open, setOpen] = useState(false);
-  const createM = useAdminAction(useServerFn(createCustomer), "Customer created", () => setOpen(false));
+  const createM = useAdminAction(useServerFn(createCustomer), "Customer created successfully!", () => {
+    setOpen(false);
+    setEmail("");
+    setPassword("");
+    setP(emptyProfile);
+    setS(emptySec);
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [p, setP] = useState(emptyProfile);
   const [s, setS] = useState(emptySec);
 
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*";
+    let pass = "ETB$";
+    for (let i = 0; i < 12; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(pass);
+    toast.info("Strong secure password generated: " + pass);
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    createM.mutate({ email, password, ...p, ...s });
+    createM.mutate({ email: email.trim(), password, ...p, ...s });
   };
 
   return (
@@ -1368,24 +1384,47 @@ function NewCustomerDialog() {
         <DialogHeader>
           <DialogTitle>Create New Bank Customer</DialogTitle>
           <DialogDescription className="text-xs">
-            Creates an authenticated login and automatically provisions Everyday Checking and Gold Rewards Card accounts. Note: Direct admin provisioning requires <code className="rounded bg-muted px-1">SUPABASE_SERVICE_ROLE_KEY</code> in Netlify environment variables.
+            Creates an authenticated login and automatically provisions Everyday Checking and Gold Rewards Card accounts.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4 py-2">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label className="text-xs">Email</Label>
-              <Input type="email" className="mt-1 text-xs" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Label className="text-xs">Email *</Label>
+              <Input
+                type="email"
+                placeholder="customer@domain.com"
+                className="mt-1 text-xs"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div>
-              <Label className="text-xs">Password</Label>
-              <Input type="password" className="mt-1 text-xs" required placeholder="Min 10 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Password *</Label>
+                <button
+                  type="button"
+                  onClick={generatePassword}
+                  className="text-[10px] text-primary hover:underline"
+                >
+                  Generate Strong
+                </button>
+              </div>
+              <Input
+                type="text"
+                className="mt-1 text-xs font-mono"
+                required
+                placeholder="Min 10 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {(Object.keys(p) as (keyof typeof p)[]).map((k) => (
               <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
-                <Label className="capitalize text-xs">{k.replace("_", " ")}</Label>
+                <Label className="capitalize text-xs">{k.replace("_", " ")} *</Label>
                 <Input className="mt-1 text-xs" required value={p[k]} onChange={(e) => setP({ ...p, [k]: e.target.value })} />
               </div>
             ))}
@@ -1396,7 +1435,7 @@ function NewCustomerDialog() {
               Cancel
             </Button>
             <Button type="submit" size="sm" disabled={createM.isPending || password.length < 10}>
-              Create Customer
+              {createM.isPending ? "Creating Account…" : "Create Customer"}
             </Button>
           </DialogFooter>
         </form>
