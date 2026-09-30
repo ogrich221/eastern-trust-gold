@@ -390,14 +390,57 @@ export const removeCustomerAccount = createServerFn({ method: "POST" })
 
 export const signInAsCustomer = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
-  .inputValidator((d) => z.object({ userId: z.string().uuid(), origin: z.string().url().max(300) }).parse(d))
+  .inputValidator((d) => z.object({
+    userId: z.string().uuid(),
+    origin: z.string().url().max(300),
+    reason: z.string().trim().min(3).max(300).default("Support inquiry"),
+  }).parse(d))
   .handler(async ({ data, context }) => {
     const { admin, log } = await assertAdmin(context);
     const { data: u, error: ue } = await admin.auth.admin.getUserById(data.userId);
     if (ue || !u.user?.email) throw new Error("Customer not found");
     const origin = new URL(data.origin).origin;
-    const { data: link, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: u.user.email, options: { redirectTo: `${origin}/auth` } });
+    const { data: link, error } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email: u.user.email,
+      options: { redirectTo: `${origin}/dashboard` },
+    });
     if (error || !link.properties?.action_link) throw new Error("Could not create sign-in link");
-    await log("sign_in_as_customer", data.userId);
+    await log("impersonate_user", data.userId, {
+      reason: data.reason,
+      by: context.adminName,
+      customerEmail: u.user.email,
+    });
     return { url: link.properties.action_link };
+  });
+
+export const getDashboardMetrics = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async ({ context }) => {
+    const { admin } = await assertAdmin(context);
+    const [{ data: accounts }, { data: users }, { data: txns }] = await Promise.all([
+      admin.from("bank_accounts").select("account_type,available_balance,current_balance,credit_limit"),
+      admin.auth.admin.listUsers({ perPage: 1000 }),
+      admin.from("account_transactions").select("amount,txn_type,created_at").order("created_at", { ascending: false }).limit(200),
+    ]);
+
+    const accts = accounts ?? [];
+    const depositAccts = accts.filter((a) => a.account_type === "checking" || a.account_type === "savings");
+    const totalDeposits = depositAccts.reduce((sum, a) => sum + Number(a.available_balance || 0), 0);
+    const totalCredit = accts.filter((a) => a.account_type === "credit").reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
+    const totalCreditLimit = accts.filter((a) => a.account_type === "credit").reduce((sum, a) => sum + Number(a.credit_limit || 0), 0);
+    
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const recent24hTxns = (txns ?? []).filter((t) => t.created_at >= oneDayAgo);
+    const volume24h = recent24hTxns.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+    return {
+      totalDeposits,
+      totalCredit,
+      totalCreditLimit,
+      totalCustomers: users.users?.length ?? 0,
+      totalAccounts: accts.length,
+      volume24h,
+      recentTxnCount: recent24hTxns.length,
+    };
   });

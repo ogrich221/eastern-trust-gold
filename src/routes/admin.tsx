@@ -3,26 +3,78 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Eye, LogIn, LogOut, MailCheck, Plus, Search, ShieldAlert, ShieldCheck, Trash2, UserPlus, UserX, UserCheck } from "lucide-react";
+import {
+  Eye,
+  LogIn,
+  LogOut,
+  MailCheck,
+  Plus,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  UserX,
+  UserCheck,
+  KeyRound,
+  FileSpreadsheet,
+  TrendingUp,
+  CreditCard,
+  Wallet,
+  Users,
+  AlertTriangle,
+  Lock,
+  Sliders,
+  CheckCircle2,
+  Clock,
+  ExternalLink
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  getAdminSession, adminLogin, adminLogout, listCustomers, listAuditLog, updateCustomerProfile, updateCustomerEmail, setCustomerPassword,
-  updateAccountBalance, setCustomerSuspended, setCustomerAdmin, deleteCustomer, logViewAsCustomer,
-  createCustomer, createProfileForCustomer, deleteCustomerProfile, resetSecurityQuestions, confirmCustomerEmail,
-  addCustomerAccount, renameCustomerAccount, removeCustomerAccount, signInAsCustomer,
+  getAdminSession,
+  adminLogin,
+  adminLogout,
+  listCustomers,
+  listAuditLog,
+  updateCustomerProfile,
+  updateCustomerEmail,
+  setCustomerPassword,
+  updateAccountBalance,
+  setCustomerSuspended,
+  setCustomerAdmin,
+  deleteCustomer,
+  logViewAsCustomer,
+  createCustomer,
+  createProfileForCustomer,
+  deleteCustomerProfile,
+  resetSecurityQuestions,
+  confirmCustomerEmail,
+  addCustomerAccount,
+  renameCustomerAccount,
+  removeCustomerAccount,
+  signInAsCustomer,
 } from "@/lib/admin.functions";
 import { TransactionForm, TransactionLedger } from "@/components/admin-transactions";
 import { UserProfile } from "@/components/user-profile";
+import { AdminReports } from "@/components/admin-reports";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -69,23 +121,40 @@ function AdminLogin() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setBusy(true); setError(null);
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
     try {
       const r = await loginFn({ data: { username, password } });
-      if (!r.ok) setError(r.error); else await qc.invalidateQueries({ queryKey: ["admin-session"] });
-    } catch (err) { setError(errMsg(err)); } finally { setBusy(false); }
+      if (!r.ok) setError(r.error);
+      else await qc.invalidateQueries({ queryKey: ["admin-session"] });
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <main className="mx-auto max-w-md px-5 py-20">
-      <ShieldCheck className="size-10 text-primary" />
-      <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-primary">Staff only</p>
-      <h1 className="mt-2 text-4xl">Admin sign in</h1>
-      <p className="mt-2 text-sm text-muted-foreground">This portal has its own login, separate from customer accounts.</p>
-      <form onSubmit={submit} className="mt-8 space-y-4 border border-border bg-card p-6">
-        <div><Label htmlFor="au">Username</Label><Input id="au" className="mt-1" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} /></div>
-        <div><Label htmlFor="ap">Password</Label><Input id="ap" type="password" className="mt-1" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+      <div className="flex size-12 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-primary">
+        <ShieldCheck className="size-7" />
+      </div>
+      <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-primary">Authorized Personnel Only</p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight">Admin & Staff Portal</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Sign in to manage customers, accounts, and monitor transactions.</p>
+      <form onSubmit={submit} className="mt-8 space-y-4 rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div>
+          <Label htmlFor="au">Admin Username</Label>
+          <Input id="au" className="mt-1" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="ap">Admin Password</Label>
+          <Input id="ap" type="password" className="mt-1" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" className="w-full" disabled={busy || !username || !password}>{busy ? "Signing in…" : "Sign in"}</Button>
+        <Button type="submit" className="w-full" disabled={busy || !username || !password}>
+          {busy ? "Authenticating…" : "Sign In to Portal"}
+        </Button>
       </form>
     </main>
   );
@@ -94,77 +163,472 @@ function AdminLogin() {
 function AdminPortal({ adminName }: { adminName: string }) {
   const logoutFn = useServerFn(adminLogout);
   const qcRoot = useQueryClient();
-  const signOut = async () => { await logoutFn(); qcRoot.removeQueries({ queryKey: ["admin-customers"] }); qcRoot.removeQueries({ queryKey: ["admin-audit"] }); await qcRoot.invalidateQueries({ queryKey: ["admin-session"] }); };
+  const signOut = async () => {
+    await logoutFn();
+    qcRoot.removeQueries({ queryKey: ["admin-customers"] });
+    qcRoot.removeQueries({ queryKey: ["admin-audit"] });
+    await qcRoot.invalidateQueries({ queryKey: ["admin-session"] });
+  };
+
   const listFn = useServerFn(listCustomers);
   const auditFn = useServerFn(listAuditLog);
   const customers = useQuery({ queryKey: ["admin-customers"], queryFn: () => listFn() });
   const audit = useQuery({ queryKey: ["admin-audit"], queryFn: () => auditFn() });
+
   const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended" | "admin" | "unconfirmed">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Compute live overview metrics
+  const metrics = useMemo(() => {
+    let totalDeposits = 0;
+    let totalCredit = 0;
+    const list = customers.data ?? [];
+    list.forEach((c) => {
+      c.accounts.forEach((a) => {
+        if (a.account_type === "checking" || a.account_type === "savings") {
+          totalDeposits += Number(a.available_balance || 0);
+        } else if (a.account_type === "credit") {
+          totalCredit += Number(a.current_balance || 0);
+        }
+      });
+    });
+    return {
+      totalDeposits,
+      totalCredit,
+      totalCustomers: list.length,
+      activeCustomers: list.filter((c) => !c.banned).length,
+    };
+  }, [customers.data]);
 
   const filtered = useMemo(() => {
     const s = q.toLowerCase();
-    return (customers.data ?? []).filter((c) =>
-      [c.email, c.profile?.first_name, c.profile?.last_name, c.profile?.phone].some((v) => v?.toLowerCase().includes(s)),
-    );
-  }, [customers.data, q]);
+    return (customers.data ?? []).filter((c) => {
+      const matchText = [c.email, c.profile?.first_name, c.profile?.last_name, c.profile?.phone, c.id].some((v) =>
+        v?.toLowerCase().includes(s)
+      );
+      if (!matchText) return false;
+      if (statusFilter === "active") return !c.banned;
+      if (statusFilter === "suspended") return c.banned;
+      if (statusFilter === "admin") return c.is_admin;
+      if (statusFilter === "unconfirmed") return !c.confirmed;
+      return true;
+    });
+  }, [customers.data, q, statusFilter]);
+
   const selected = customers.data?.find((c) => c.id === selectedId) ?? null;
   const emailOf = (id: string | null) => customers.data?.find((c) => c.id === id)?.email ?? id?.slice(0, 8) ?? "—";
 
   return (
-    <main className="py-12">
+    <main className="py-10">
       <Toaster />
-      <div className="mx-auto max-w-7xl px-5 lg:px-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Staff</p>
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-4"><h1 className="text-4xl md:text-5xl">Admin portal</h1><div className="flex items-center gap-3 text-sm text-muted-foreground">Signed in as {adminName}<Button variant="outline" size="sm" onClick={signOut}><LogOut /> Sign out</Button></div></div>
-        <Tabs defaultValue="customers" className="mt-8">
-          <TabsList><TabsTrigger value="customers">Customers</TabsTrigger><TabsTrigger value="transactions">Transactions</TabsTrigger><TabsTrigger value="audit">Activity log</TabsTrigger></TabsList>
-          <TabsContent value="transactions" className="mt-6"><TransactionLedger emailOf={(id) => emailOf(id)} /></TabsContent>
+      <div className="mx-auto max-w-7xl px-5 lg:px-8 space-y-8">
+        {/* Top Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <ShieldCheck className="size-4" />
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-widest text-primary">Staff Operations</p>
+            </div>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">Admin Dashboard</h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Logged in as</p>
+              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                {adminName} <Badge variant="outline" className="text-[10px] py-0">Admin</Badge>
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={signOut}>
+              <LogOut className="mr-1.5 size-3.5" /> Sign Out
+            </Button>
+          </div>
+        </div>
+
+        {/* Global Banking Metrics Ribbon */}
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider">Total Customer Deposits</span>
+              <Wallet className="size-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-primary font-display">{money(metrics.totalDeposits)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Liquid Checking & Savings</p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider">Active Credit Drawn</span>
+              <CreditCard className="size-4 text-amber-400" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-foreground font-display">{money(metrics.totalCredit)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Gold Rewards Outstanding</p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider">Registered Accounts</span>
+              <Users className="size-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-foreground font-display">{metrics.totalCustomers}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{metrics.activeCustomers} active customers</p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider">Security & Audit Status</span>
+              <CheckCircle2 className="size-4 text-emerald-400" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-emerald-400 font-display">Compliant</p>
+            <p className="mt-1 text-xs text-muted-foreground">{audit.data?.length ?? 0} logged staff actions</p>
+          </div>
+        </section>
+
+        {/* Top-Level Tabs */}
+        <Tabs defaultValue="customers" className="w-full">
+          <div className="border-b border-border">
+            <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none bg-transparent p-0 pb-px">
+              <TabsTrigger
+                value="customers"
+                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+              >
+                <Users className="mr-2 size-4" /> Customer Management
+              </TabsTrigger>
+              <TabsTrigger
+                value="transactions"
+                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+              >
+                <Clock className="mr-2 size-4" /> Transaction Monitoring
+              </TabsTrigger>
+              <TabsTrigger
+                value="reports"
+                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+              >
+                <FileSpreadsheet className="mr-2 size-4" /> Reports & Analytics
+              </TabsTrigger>
+              <TabsTrigger
+                value="permissions"
+                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+              >
+                <Sliders className="mr-2 size-4" /> Role Permissions
+              </TabsTrigger>
+              <TabsTrigger
+                value="audit"
+                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+              >
+                <ShieldCheck className="mr-2 size-4" /> Activity Log
+              </TabsTrigger>
+              <TabsTrigger
+                value="security"
+                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+              >
+                <Lock className="mr-2 size-4" /> Security Settings
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* TAB 1: CUSTOMER MANAGEMENT */}
           <TabsContent value="customers" className="mt-6">
-            <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-              <div className="border border-border bg-card">
-                <div className="border-b border-border p-3"><NewCustomerDialog /></div>
-                <div className="relative border-b border-border p-3">
-                  <Search className="absolute left-6 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, phone" className="pl-9" />
+            <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
+              {/* Customer Directory Sidebar */}
+              <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col h-[750px]">
+                <div className="border-b border-border p-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">Customers Directory</h3>
+                  <NewCustomerDialog />
                 </div>
-                <ul className="max-h-[70vh] overflow-y-auto">
-                  {customers.isLoading && <li className="p-4 text-sm text-muted-foreground">Loading…</li>}
-                  {customers.error && <li className="p-4 text-sm text-destructive">{errMsg(customers.error)}</li>}
-                  {filtered.map((c) => (
-                    <li key={c.id}>
-                      <button onClick={() => setSelectedId(c.id)} className={`w-full border-b border-border p-4 text-left transition-colors hover:bg-accent ${selectedId === c.id ? "bg-accent" : ""}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium">{c.profile ? `${c.profile.first_name} ${c.profile.last_name}` : "No profile yet"}</span>
-                          <span className="flex gap-1">{c.is_admin && <Badge>Admin</Badge>}{c.banned && <Badge variant="destructive">Suspended</Badge>}</span>
-                        </div>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">{c.email}</p>
+
+                <div className="p-3 border-b border-border space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={q}
+                      onChange={(e) => setQ(e.target.value)}
+                      placeholder="Search name, email, phone..."
+                      className="pl-9 h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {(["all", "active", "suspended", "admin", "unconfirmed"] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setStatusFilter(filter)}
+                        className={`text-[11px] px-2.5 py-1 rounded-md transition-colors capitalize ${
+                          statusFilter === filter
+                            ? "bg-primary text-primary-foreground font-medium"
+                            : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {filter}
                       </button>
-                    </li>
-                  ))}
-                  {customers.data && filtered.length === 0 && <li className="p-4 text-sm text-muted-foreground">No customers found.</li>}
+                    ))}
+                  </div>
+                </div>
+
+                <ul className="flex-1 overflow-y-auto divide-y divide-border">
+                  {customers.isLoading && <li className="p-4 text-sm text-muted-foreground">Loading customers…</li>}
+                  {customers.error && <li className="p-4 text-sm text-destructive">{errMsg(customers.error)}</li>}
+                  {filtered.map((c) => {
+                    const fullName = c.profile ? `${c.profile.first_name} ${c.profile.last_name}`.trim() : "";
+                    const totalBal = c.accounts.reduce(
+                      (s, a) => s + (a.account_type === "credit" ? -a.current_balance : a.available_balance),
+                      0
+                    );
+                    const isSelected = selectedId === c.id;
+
+                    return (
+                      <li key={c.id}>
+                        <button
+                          onClick={() => setSelectedId(c.id)}
+                          className={`w-full p-4 text-left transition-colors hover:bg-accent/60 ${
+                            isSelected ? "bg-accent border-l-4 border-primary" : ""
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-semibold text-sm text-foreground">
+                                {fullName || c.email}
+                              </p>
+                              <p className="truncate text-xs text-muted-foreground">{c.email}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-bold text-foreground">{money(totalBal)}</p>
+                              <p className="text-[10px] text-muted-foreground">{c.accounts.length} accts</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 flex items-center gap-1.5">
+                            {c.is_admin && <Badge variant="outline" className="text-[10px] py-0">Admin</Badge>}
+                            {c.banned ? (
+                              <Badge variant="destructive" className="text-[10px] py-0">Suspended</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] py-0 text-emerald-400 border-emerald-500/40">Active</Badge>
+                            )}
+                            {!c.confirmed && <Badge variant="secondary" className="text-[10px] py-0">Unconfirmed</Badge>}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {customers.data && filtered.length === 0 && (
+                    <li className="p-8 text-center text-sm text-muted-foreground">No matching customers found.</li>
+                  )}
                 </ul>
               </div>
-              <div>{selected ? <CustomerDetail key={selected.id} c={selected} onDeleted={() => setSelectedId(null)} /> : <div className="border border-dashed border-border p-10 text-center text-muted-foreground">Select a customer to manage.</div>}</div>
+
+              {/* Customer Detail View */}
+              <div className="h-[750px] overflow-y-auto">
+                {selected ? (
+                  <CustomerDetail key={selected.id} c={selected} onDeleted={() => setSelectedId(null)} />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground">
+                    <Users className="size-12 stroke-[1.5] text-muted-foreground/60" />
+                    <h3 className="mt-4 text-lg font-semibold text-foreground">Select a Customer</h3>
+                    <p className="mt-1 text-sm max-w-sm">
+                      Choose an account from the directory to inspect balances, adjust limits, monitor activity, or launch an authorized support session.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </TabsContent>
-          <TabsContent value="audit" className="mt-6">
-            <div className="overflow-x-auto border border-border bg-card">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border text-left text-muted-foreground"><tr><th className="p-3">When</th><th className="p-3">Admin</th><th className="p-3">Action</th><th className="p-3">Customer</th><th className="p-3">Details</th></tr></thead>
-                <tbody>
-                  {(audit.data ?? []).map((r) => (
-                    <tr key={r.id} className="border-b border-border">
-                      <td className="p-3 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
-                      <td className="p-3">{(() => { try { return (JSON.parse(r.details) as { by?: string }).by ?? "—"; } catch { return "—"; } })()}</td>
-                      <td className="p-3">{r.action.replace(/_/g, " ")}</td>
-                      <td className="p-3">{r.target_user_id ? emailOf(r.target_user_id) : "—"}</td>
-                      <td className="max-w-xs truncate p-3 text-xs text-muted-foreground">{r.details === "{}" ? "" : r.details}</td>
+
+          {/* TAB 2: TRANSACTION MONITORING */}
+          <TabsContent value="transactions" className="mt-6">
+            <TransactionLedger emailOf={(id) => emailOf(id)} />
+          </TabsContent>
+
+          {/* TAB 3: REPORTS & ANALYTICS */}
+          <TabsContent value="reports" className="mt-6">
+            <AdminReports
+              customers={customers.data ?? []}
+              auditLogs={audit.data ?? []}
+              emailOf={(id) => emailOf(id)}
+            />
+          </TabsContent>
+
+          {/* TAB 4: PERMISSIONS MATRIX */}
+          <TabsContent value="permissions" className="mt-6">
+            <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">Staff Roles & Permissions Matrix</h2>
+                <p className="text-xs text-muted-foreground">
+                  Role-based security controls governing staff access across accounts, transfers, and customer details.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-border text-xs text-muted-foreground">
+                    <tr>
+                      <th className="py-3 px-4">Role Title</th>
+                      <th className="py-3 px-4">View Balances</th>
+                      <th className="py-3 px-4">Post Transactions</th>
+                      <th className="py-3 px-4">Reverse Entries</th>
+                      <th className="py-3 px-4">Log in as User</th>
+                      <th className="py-3 px-4">Delete Accounts</th>
                     </tr>
-                  ))}
-                  {audit.data?.length === 0 && <tr><td colSpan={5} className="p-4 text-muted-foreground">No activity yet.</td></tr>}
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <tr>
+                      <td className="py-3.5 px-4 font-semibold text-foreground flex items-center gap-2">
+                        <ShieldCheck className="size-4 text-primary" /> Super Admin
+                      </td>
+                      <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Access</td>
+                      <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Access</td>
+                      <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Access</td>
+                      <td className="py-3.5 px-4 text-emerald-400 font-medium">Authorized Audit</td>
+                      <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Control</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-semibold text-foreground flex items-center gap-2">
+                        <Users className="size-4 text-blue-400" /> Support Specialist
+                      </td>
+                      <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Access</td>
+                      <td className="py-3.5 px-4 text-muted-foreground">Review Only</td>
+                      <td className="py-3.5 px-4 text-muted-foreground">Approval Needed</td>
+                      <td className="py-3.5 px-4 text-emerald-400 font-medium">Authorized Audit</td>
+                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-semibold text-foreground flex items-center gap-2">
+                        <Lock className="size-4 text-amber-400" /> Compliance Auditor
+                      </td>
+                      <td className="py-3.5 px-4 text-emerald-400 font-medium">Read Only</td>
+                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
+                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
+                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
+                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* TAB 5: AUDIT LOG */}
+          <TabsContent value="audit" className="mt-6">
+            <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold">Audit Activity Log</h3>
+                  <p className="text-xs text-muted-foreground">Immutable trail of every administrative transaction and support login.</p>
+                </div>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="border-b border-border text-left text-muted-foreground text-xs">
+                  <tr>
+                    <th className="p-3.5">Timestamp</th>
+                    <th className="p-3.5">Admin</th>
+                    <th className="p-3.5">Action</th>
+                    <th className="p-3.5">Customer</th>
+                    <th className="p-3.5">Details / Support Reason</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {(audit.data ?? []).map((r) => {
+                    let admin = "—";
+                    let reason = "";
+                    try {
+                      const d = JSON.parse(r.details);
+                      admin = d.by ?? "admin";
+                      reason = d.reason ?? "";
+                    } catch {}
+                    return (
+                      <tr key={r.id} className="hover:bg-muted/30">
+                        <td className="p-3.5 whitespace-nowrap text-xs text-muted-foreground">
+                          {new Date(r.created_at).toLocaleString()}
+                        </td>
+                        <td className="p-3.5 font-medium">{admin}</td>
+                        <td className="p-3.5">
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {r.action.replace(/_/g, " ")}
+                          </Badge>
+                        </td>
+                        <td className="p-3.5 text-xs">{r.target_user_id ? emailOf(r.target_user_id) : "—"}</td>
+                        <td className="max-w-md p-3.5 text-xs text-muted-foreground">
+                          {reason ? (
+                            <span className="font-semibold text-foreground">Reason: {reason}</span>
+                          ) : r.details === "{}" ? (
+                            "—"
+                          ) : (
+                            r.details
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {audit.data?.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                        No activity recorded yet.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
+            </div>
+          </TabsContent>
+
+          {/* TAB 6: SECURITY SETTINGS */}
+          <TabsContent value="security" className="mt-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                <h3 className="text-base font-semibold">Admin Credentials & Environment</h3>
+                <p className="text-xs text-muted-foreground">
+                  Your staff credentials are authenticated securely via server functions.
+                </p>
+
+                <div className="rounded-lg bg-background p-4 border border-border space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Active Username:</span>
+                    <strong className="text-foreground font-mono">{adminName}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Session Expiration:</span>
+                    <strong className="text-foreground">8 Hours (Strict HttpOnly Cookie)</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Authentication Method:</span>
+                    <strong className="text-foreground">HMAC-SHA256 Tokenization</strong>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <p className="text-xs font-semibold text-foreground mb-1">To change Admin Credentials:</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Set <code className="bg-muted px-1.5 py-0.5 rounded text-primary">ADMIN_USERNAME</code> and{" "}
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-primary">ADMIN_PASSWORD</code> in your Netlify
+                    dashboard under <strong>Project configuration &gt; Environment variables</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                <h3 className="text-base font-semibold">Compliance & Audit Mandates</h3>
+                <p className="text-xs text-muted-foreground">
+                  Standard Operating Procedures (SOP) for customer support impersonation.
+                </p>
+
+                <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
+                  <div className="flex gap-2">
+                    <CheckCircle2 className="size-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Every "Log in as user" action requires an approved support ticket or reason.</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <CheckCircle2 className="size-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>All account modifications and balance overrides are permanently written to the ledger.</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <CheckCircle2 className="size-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Customer security answers remain encrypted with one-way hashes and cannot be read by staff.</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -177,7 +641,12 @@ function useAdminAction<T>(fn: (args: { data: T }) => Promise<unknown>, success:
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: T) => fn({ data }),
-    onSuccess: () => { toast.success(success); qc.invalidateQueries({ queryKey: ["admin-customers"] }); qc.invalidateQueries({ queryKey: ["admin-audit"] }); after?.(); },
+    onSuccess: () => {
+      toast.success(success);
+      qc.invalidateQueries({ queryKey: ["admin-customers"] });
+      qc.invalidateQueries({ queryKey: ["admin-audit"] });
+      after?.();
+    },
     onError: (e) => toast.error(errMsg(e)),
   });
 }
@@ -192,117 +661,269 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   const logView = useServerFn(logViewAsCustomer);
   const delProfileM = useAdminAction(useServerFn(deleteCustomerProfile), "Profile deleted");
   const confirmM = useAdminAction(useServerFn(confirmCustomerEmail), "Email marked as confirmed");
-  const signInFn = useServerFn(signInAsCustomer);
-  const [signingIn, setSigningIn] = useState(false);
 
   const [p, setP] = useState({
-    first_name: c.profile?.first_name ?? "", last_name: c.profile?.last_name ?? "", phone: c.profile?.phone ?? "",
-    address: c.profile?.address ?? "", city: c.profile?.city ?? "", postal_code: c.profile?.postal_code ?? "",
+    first_name: c.profile?.first_name ?? "",
+    last_name: c.profile?.last_name ?? "",
+    phone: c.profile?.phone ?? "",
+    address: c.profile?.address ?? "",
+    city: c.profile?.city ?? "",
+    postal_code: c.profile?.postal_code ?? "",
   });
   const [email, setEmail] = useState(c.email);
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const [viewOpen, setViewOpen] = useState(false);
+  const [impersonateOpen, setImpersonateOpen] = useState(false);
 
-  const openView = () => { setViewOpen(true); logView({ data: { userId: c.id } }).catch(() => {}); };
-  const loginAs = async () => {
-    const tab = window.open("about:blank", "_blank");
-    setSigningIn(true);
-    try {
-      const { url } = await signInFn({ data: { userId: c.id, origin: window.location.origin } });
-      if (tab) tab.location.href = url; else window.location.href = url;
-      toast.success("Signed in as customer in a new tab");
-    } catch (e) { tab?.close(); toast.error(errMsg(e)); } finally { setSigningIn(false); }
+  const openView = () => {
+    setViewOpen(true);
+    logView({ data: { userId: c.id } }).catch(() => {});
   };
 
   return (
     <div className="space-y-6">
-      <section className="border border-border bg-card p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      {/* Customer Header Box */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-3xl">{c.profile ? `${c.profile.first_name} ${c.profile.last_name}` : c.email}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{c.email} · Joined {new Date(c.created_at).toLocaleDateString()} · {c.confirmed ? "Email confirmed" : "Email not confirmed"}</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold tracking-tight">
+                {c.profile ? `${c.profile.first_name} ${c.profile.last_name}` : c.email}
+              </h2>
+              {c.is_admin && <Badge>Admin</Badge>}
+              {c.banned ? (
+                <Badge variant="destructive">Suspended</Badge>
+              ) : (
+                <Badge variant="outline" className="border-emerald-500/40 text-emerald-400">Active</Badge>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {c.email} · ID: <span className="font-mono">{c.id.slice(0, 8)}</span> · Joined{" "}
+              {new Date(c.created_at).toLocaleDateString()} · {c.confirmed ? "Email verified" : "Unverified"}
+            </p>
           </div>
+
           <div className="flex flex-wrap gap-2">
-            <Button onClick={loginAs} disabled={signingIn || c.banned}><LogIn /> {signingIn ? "Opening…" : "Log in as customer"}</Button>
-            <Button variant="outline" onClick={openView}><Eye /> View as customer</Button>
-            <Button variant="outline" disabled={suspendM.isPending} onClick={() => suspendM.mutate({ userId: c.id, suspended: !c.banned })}>{c.banned ? <><UserCheck /> Reactivate</> : <><UserX /> Suspend</>}</Button>
-            <Button variant="outline" disabled={adminM.isPending} onClick={() => adminM.mutate({ userId: c.id, isAdmin: !c.is_admin })}><ShieldCheck /> {c.is_admin ? "Remove admin" : "Make admin"}</Button>
+            <Button onClick={() => setImpersonateOpen(true)} disabled={c.banned} className="text-xs">
+              <LogIn className="mr-1.5 size-3.5" /> Log in as user
+            </Button>
+            <Button variant="outline" size="sm" onClick={openView} className="text-xs">
+              <Eye className="mr-1.5 size-3.5" /> View Profile
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={suspendM.isPending}
+              onClick={() => suspendM.mutate({ userId: c.id, suspended: !c.banned })}
+              className="text-xs"
+            >
+              {c.banned ? <><UserCheck className="mr-1.5 size-3.5" /> Reactivate</> : <><UserX className="mr-1.5 size-3.5" /> Suspend</>}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={adminM.isPending}
+              onClick={() => adminM.mutate({ userId: c.id, isAdmin: !c.is_admin })}
+              className="text-xs"
+            >
+              <ShieldCheck className="mr-1.5 size-3.5" /> {c.is_admin ? "Remove Admin" : "Make Admin"}
+            </Button>
           </div>
         </div>
       </section>
 
-      {!c.profile && <CreateProfile userId={c.id} />}
-      {c.profile && (
-        <section className="border border-border bg-card p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-xl">Profile</h3>
-            <AlertDialog>
-              <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-destructive"><Trash2 /> Delete profile</Button></AlertDialogTrigger>
+      {/* Detail Sub Tabs */}
+      <Tabs defaultValue="accounts" className="w-full">
+        <TabsList className="bg-card border border-border">
+          <TabsTrigger value="accounts">Accounts & Balances ({c.accounts.length})</TabsTrigger>
+          <TabsTrigger value="profile">Profile Details</TabsTrigger>
+          <TabsTrigger value="security">Security & Login</TabsTrigger>
+          <TabsTrigger value="danger" className="text-destructive">Danger Zone</TabsTrigger>
+        </TabsList>
+
+        {/* TAB 1: ACCOUNTS */}
+        <TabsContent value="accounts" className="mt-4 space-y-4">
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h3 className="text-base font-semibold mb-4">Customer Accounts</h3>
+            <div className="space-y-4">
+              {c.accounts.length === 0 && <p className="text-sm text-muted-foreground">No accounts configured.</p>}
+              {c.accounts.map((a) => (
+                <AccountEditor key={a.id} a={a} />
+              ))}
+            </div>
+            <AddAccount userId={c.id} existing={c.accounts.map((a) => a.account_type)} />
+          </div>
+        </TabsContent>
+
+        {/* TAB 2: PROFILE */}
+        <TabsContent value="profile" className="mt-4">
+          {!c.profile && <CreateProfile userId={c.id} />}
+          {c.profile && (
+            <section className="rounded-xl border border-border bg-card p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-base font-semibold">Contact & Residential Details</h3>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-destructive text-xs">
+                      <Trash2 className="mr-1 size-3.5" /> Clear Profile
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset customer profile?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Removes name, phone, and residential address. Login credentials and accounts remain intact.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => delProfileM.mutate({ userId: c.id })}>
+                        Confirm Clear
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+
+              <form
+                className="grid gap-4 sm:grid-cols-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  profileM.mutate({ userId: c.id, ...p });
+                }}
+              >
+                {(Object.keys(p) as (keyof typeof p)[]).map((k) => (
+                  <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
+                    <Label htmlFor={k} className="capitalize text-xs">
+                      {k.replace("_", " ")}
+                    </Label>
+                    <Input
+                      id={k}
+                      className="mt-1"
+                      value={p[k]}
+                      onChange={(e) => setP({ ...p, [k]: e.target.value })}
+                    />
+                  </div>
+                ))}
+                <div className="sm:col-span-2">
+                  <Button type="submit" size="sm" disabled={profileM.isPending}>
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </section>
+          )}
+        </TabsContent>
+
+        {/* TAB 3: SECURITY */}
+        <TabsContent value="security" className="mt-4 space-y-4">
+          <div className="grid gap-6 md:grid-cols-2">
+            <form
+              className="rounded-xl border border-border bg-card p-6"
+              onSubmit={(e) => {
+                e.preventDefault();
+                emailM.mutate({ userId: c.id, email });
+              }}
+            >
+              <h3 className="text-base font-semibold">Primary Login Email</h3>
+              <Input type="email" className="mt-4" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button type="submit" size="sm" disabled={emailM.isPending || email === c.email}>
+                  Update Email
+                </Button>
+                {!c.confirmed && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={confirmM.isPending}
+                    onClick={() => confirmM.mutate({ userId: c.id })}
+                  >
+                    <MailCheck className="mr-1.5 size-3.5" /> Mark Confirmed
+                  </Button>
+                )}
+              </div>
+            </form>
+
+            <form
+              className="rounded-xl border border-border bg-card p-6"
+              onSubmit={(e) => {
+                e.preventDefault();
+                passM.mutate({ userId: c.id, password }, { onSuccess: () => setPassword("") });
+              }}
+            >
+              <h3 className="text-base font-semibold">Reset Password</h3>
+              <Input
+                type="password"
+                className="mt-4"
+                placeholder="New password (min 10 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Button type="submit" size="sm" className="mt-4" disabled={passM.isPending || password.length < 10}>
+                Set Password
+              </Button>
+            </form>
+          </div>
+
+          {c.profile && (
+            <div className="rounded-xl border border-border bg-card p-6">
+              <h3 className="text-base font-semibold mb-2">Security Questions</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Current: {c.profile.security_question_one} &amp; {c.profile.security_question_two}. Answers are stored with cryptographic hashes.
+              </p>
+              <ResetSecurity userId={c.id} />
+            </div>
+          )}
+        </TabsContent>
+
+        {/* TAB 4: DANGER ZONE */}
+        <TabsContent value="danger" className="mt-4">
+          <section className="rounded-xl border border-destructive/40 bg-card p-6">
+            <h3 className="text-base font-semibold text-destructive flex items-center gap-2">
+              <AlertTriangle className="size-5" /> Danger Zone
+            </h3>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Permanently delete this customer's account, profile, and login credentials. This cannot be undone.
+            </p>
+            <AlertDialog onOpenChange={() => setConfirmText("")}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="mt-4">
+                  <Trash2 className="mr-1.5 size-3.5" /> Delete Customer Permanently
+                </Button>
+              </AlertDialogTrigger>
               <AlertDialogContent>
-                <AlertDialogHeader><AlertDialogTitle>Delete this profile?</AlertDialogTitle><AlertDialogDescription>Removes name, contact details and security questions. The login and accounts stay.</AlertDialogDescription></AlertDialogHeader>
-                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => delProfileM.mutate({ userId: c.id })}>Delete profile</AlertDialogAction></AlertDialogFooter>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete customer {c.email}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Type <strong>DELETE</strong> to confirm permanent erasure.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" />
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={confirmText !== "DELETE" || deleteM.isPending}
+                    onClick={() => deleteM.mutate({ userId: c.id })}
+                  >
+                    Delete Forever
+                  </AlertDialogAction>
+                </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          </div>
-          <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); profileM.mutate({ userId: c.id, ...p }); }}>
-            {(Object.keys(p) as (keyof typeof p)[]).map((k) => (
-              <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
-                <Label htmlFor={k} className="capitalize">{k.replace("_", " ")}</Label>
-                <Input id={k} className="mt-1" value={p[k]} onChange={(e) => setP({ ...p, [k]: e.target.value })} />
-              </div>
-            ))}
-            <div className="sm:col-span-2"><Button type="submit" disabled={profileM.isPending}>Save profile</Button></div>
-          </form>
-          <p className="mt-4 text-xs text-muted-foreground">Current questions: {c.profile.security_question_one} / {c.profile.security_question_two}. Answers are stored scrambled and can't be viewed.</p>
-          <ResetSecurity userId={c.id} />
-        </section>
-      )}
+          </section>
+        </TabsContent>
+      </Tabs>
 
-      <section className="grid gap-6 md:grid-cols-2">
-        <form className="border border-border bg-card p-6" onSubmit={(e) => { e.preventDefault(); emailM.mutate({ userId: c.id, email }); }}>
-          <h3 className="text-xl">Login email</h3>
-          <Input type="email" className="mt-4" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="submit" disabled={emailM.isPending || email === c.email}>Update email</Button>
-            {!c.confirmed && <Button type="button" variant="outline" disabled={confirmM.isPending} onClick={() => confirmM.mutate({ userId: c.id })}><MailCheck /> Mark confirmed</Button>}
-          </div>
-        </form>
-        <form className="border border-border bg-card p-6" onSubmit={(e) => { e.preventDefault(); passM.mutate({ userId: c.id, password }, { onSuccess: () => setPassword("") }); }}>
-          <h3 className="text-xl">Set new password</h3>
-          <Input type="password" className="mt-4" placeholder="At least 10 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <Button type="submit" className="mt-3" disabled={passM.isPending || password.length < 10}>Set password</Button>
-        </form>
-      </section>
+      {/* Authorized Support "Log in as user" Dialog */}
+      <LogInAsUserDialog
+        open={impersonateOpen}
+        onOpenChange={setImpersonateOpen}
+        customer={c}
+      />
 
-      <section className="border border-border bg-card p-6">
-        <h3 className="text-xl">Accounts & balances</h3>
-        <div className="mt-4 space-y-4">
-          {c.accounts.length === 0 && <p className="text-sm text-muted-foreground">No accounts.</p>}
-          {c.accounts.map((a) => <AccountEditor key={a.id} a={a} />)}
-        </div>
-        <AddAccount userId={c.id} existing={c.accounts.map((a) => a.account_type)} />
-      </section>
-
-      <section className="border border-destructive/50 bg-card p-6">
-        <h3 className="text-xl text-destructive">Danger zone</h3>
-        <p className="mt-2 text-sm text-muted-foreground">Permanently deletes this customer's login, profile and all accounts. This cannot be undone.</p>
-        <AlertDialog onOpenChange={() => setConfirmText("")}>
-          <AlertDialogTrigger asChild><Button variant="destructive" className="mt-4"><Trash2 /> Delete customer permanently</Button></AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete {c.email}?</AlertDialogTitle>
-              <AlertDialogDescription>Type DELETE to confirm. All of this customer's data will be erased forever.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" />
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction disabled={confirmText !== "DELETE" || deleteM.isPending} onClick={() => deleteM.mutate({ userId: c.id })}>Delete forever</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </section>
-
+      {/* Read-only Live UserProfile Modal */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-6">
           <DialogHeader className="mb-4">
@@ -326,6 +947,105 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   );
 }
 
+function LogInAsUserDialog({
+  open,
+  onOpenChange,
+  customer,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  customer: Customer;
+}) {
+  const signInFn = useServerFn(signInAsCustomer);
+  const [reason, setReason] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const handleLaunch = async () => {
+    if (!reason.trim()) {
+      toast.error("Please enter a support ticket or reason");
+      return;
+    }
+    if (!agreed) {
+      toast.error("You must acknowledge the security mandate");
+      return;
+    }
+
+    const tab = window.open("about:blank", "_blank");
+    setBusy(true);
+    try {
+      const { url } = await signInFn({
+        data: {
+          userId: customer.id,
+          origin: window.location.origin,
+          reason: reason.trim(),
+        },
+      });
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+      toast.success("Signed in as customer in a new tab");
+      onOpenChange(false);
+    } catch (e) {
+      tab?.close();
+      toast.error(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Lock className="size-5 text-primary" /> Authorized Customer Support Access
+          </DialogTitle>
+          <DialogDescription>
+            You are initiating a direct support session for{" "}
+            <strong>{customer.profile ? `${customer.profile.first_name} ${customer.profile.last_name}` : customer.email}</strong>.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div>
+            <Label htmlFor="support-reason" className="text-xs font-semibold">
+              Support Reason or Ticket Reference <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="support-reason"
+              placeholder="e.g. Ticket #9201 - Verify pending deposit"
+              className="mt-1"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+
+          <label className="flex items-start gap-2.5 rounded-lg border border-border p-3 cursor-pointer bg-muted/30">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-xs text-muted-foreground leading-relaxed">
+              I certify that this support session is authorized for official bank operations. This event and my admin username will be permanently recorded in the immutable audit log.
+            </span>
+          </label>
+        </div>
+
+        <DialogFooter className="mt-4">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={handleLaunch} disabled={busy || !reason.trim() || !agreed}>
+            {busy ? "Authorizing…" : "Launch Customer Session"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
   const m = useAdminAction(useServerFn(updateAccountBalance), "Account settings saved");
   const renameM = useAdminAction(useServerFn(renameCustomerAccount), "Account details updated");
@@ -334,45 +1054,103 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
   const [overdraft, setOverdraft] = useState(a.allow_overdraft);
   const [name, setName] = useState(a.name);
   const [four, setFour] = useState(a.last_four);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (limit !== "" && !Number.isFinite(Number(limit))) { toast.error("Enter a valid credit limit"); return; }
-    m.mutate({ accountId: a.id, credit_limit: a.account_type === "credit" && limit !== "" ? Number(limit) : null, allow_overdraft: overdraft });
+    if (limit !== "" && !Number.isFinite(Number(limit))) {
+      toast.error("Enter a valid credit limit");
+      return;
+    }
+    m.mutate({
+      accountId: a.id,
+      credit_limit: a.account_type === "credit" && limit !== "" ? Number(limit) : null,
+      allow_overdraft: overdraft,
+    });
     if (name !== a.name || four !== a.last_four) {
-      if (!/^\d{4}$/.test(four)) { toast.error("Last four must be 4 digits"); return; }
+      if (!/^\d{4}$/.test(four)) {
+        toast.error("Last four must be 4 digits");
+        return;
+      }
       renameM.mutate({ accountId: a.id, name, last_four: four });
     }
   };
+
   return (
-    <div className="space-y-3 border border-border p-4">
-      <form onSubmit={submit} className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-sm text-muted-foreground">Available balance</p>
-          <p className="text-2xl font-semibold text-primary">{a.available_balance.toLocaleString("en-US", { style: "currency", currency: a.currency })}</p>
+    <div className="rounded-xl border border-border bg-card/60 p-4 space-y-4">
+      <form onSubmit={submit} className="space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-3">
+          <div>
+            <p className="text-xs text-muted-foreground capitalize">{a.account_type} Account</p>
+            <p className="text-base font-semibold text-foreground">{a.name} (•••• {a.last_four})</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground">Available Balance</p>
+            <p className="text-xl font-bold text-primary font-display">
+              {a.available_balance.toLocaleString("en-US", { style: "currency", currency: a.currency })}
+            </p>
+          </div>
         </div>
+
         <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto] sm:items-end">
-          <div><Label className="text-xs">Account name ({a.account_type})</Label><Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div><Label className="text-xs">Last four</Label><Input className="mt-1" maxLength={4} value={four} onChange={(e) => setFour(e.target.value)} /></div>
+          <div>
+            <Label className="text-xs">Account Label</Label>
+            <Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Last 4 Digits</Label>
+            <Input className="mt-1 font-mono" maxLength={4} value={four} onChange={(e) => setFour(e.target.value)} />
+          </div>
           <AlertDialog>
-            <AlertDialogTrigger asChild><Button type="button" variant="ghost" size="sm" className="text-destructive"><Trash2 /> Remove</Button></AlertDialogTrigger>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="text-destructive text-xs">
+                <Trash2 className="mr-1 size-3.5" /> Remove
+              </Button>
+            </AlertDialogTrigger>
             <AlertDialogContent>
-              <AlertDialogHeader><AlertDialogTitle>Remove {a.name}?</AlertDialogTitle><AlertDialogDescription>This account will be erased. Its transaction history stays in the ledger.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => removeM.mutate({ accountId: a.id })}>Remove</AlertDialogAction></AlertDialogFooter>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove {a.name}?</AlertDialogTitle>
+                <AlertDialogDescription>This account will be erased. Its transaction ledger remains intact.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => removeM.mutate({ accountId: a.id })}>
+                  Confirm Remove
+                </AlertDialogAction>
+              </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
-        <div className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
-          <div>{a.account_type === "credit" && <><Label className="text-xs">Credit limit</Label><Input className="mt-1" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} /></>}</div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={overdraft} onChange={(e) => setOverdraft(e.target.checked)} /> Allow overdraft</label>
-          <Button type="submit" size="sm" disabled={m.isPending || renameM.isPending}>Save settings</Button>
+
+        <div className="grid items-center gap-3 sm:grid-cols-[1fr_1fr_auto] border-t border-border/40 pt-3">
+          <div>
+            {a.account_type === "credit" && (
+              <>
+                <Label className="text-xs">Credit Limit</Label>
+                <Input className="mt-1" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={overdraft} onCheckedChange={setOverdraft} id={`od-${a.id}`} />
+            <Label htmlFor={`od-${a.id}`} className="text-xs cursor-pointer">Allow Overdraft</Label>
+          </div>
+          <Button type="submit" size="sm" disabled={m.isPending || renameM.isPending}>
+            Save Settings
+          </Button>
         </div>
       </form>
+
       <TransactionForm a={a} />
     </div>
   );
 }
 
-const TYPE_DEFAULT_NAMES: Record<string, string> = { checking: "Everyday Checking", savings: "High-Yield Savings", credit: "Gold Rewards Card", investment: "Wealth Portfolio" };
+const TYPE_DEFAULT_NAMES: Record<string, string> = {
+  checking: "Everyday Checking",
+  savings: "High-Yield Savings",
+  credit: "Gold Rewards Card",
+  investment: "Wealth Portfolio",
+};
 
 function AddAccount({ userId, existing }: { userId: string; existing: string[] }) {
   const missing = Object.keys(TYPE_DEFAULT_NAMES).filter((t) => !existing.includes(t));
@@ -380,27 +1158,70 @@ function AddAccount({ userId, existing }: { userId: string; existing: string[] }
   const [type, setType] = useState(missing[0] ?? "");
   const [bal, setBal] = useState("0");
   const [limit, setLimit] = useState("5000");
+
   if (missing.length === 0) return null;
   const t = missing.includes(type) ? type : missing[0]!;
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const b = Number(bal); const l = Number(limit);
-    if (!Number.isFinite(b) || (t === "credit" && !Number.isFinite(l))) { toast.error("Enter valid numbers"); return; }
-    m.mutate({ userId, account_type: t as "checking", name: TYPE_DEFAULT_NAMES[t]!, available_balance: t === "credit" ? l - b : b, current_balance: b, credit_limit: t === "credit" ? l : null });
+    const b = Number(bal.replace(/,/g, ""));
+    const l = Number(limit.replace(/,/g, ""));
+    if (!Number.isFinite(b) || (t === "credit" && !Number.isFinite(l))) {
+      toast.error("Enter valid numbers");
+      return;
+    }
+    m.mutate({
+      userId,
+      account_type: t as "checking",
+      name: TYPE_DEFAULT_NAMES[t]!,
+      available_balance: t === "credit" ? l - b : b,
+      current_balance: b,
+      credit_limit: t === "credit" ? l : null,
+    });
   };
+
   return (
-    <form onSubmit={submit} className="mt-4 grid items-end gap-3 border border-dashed border-border p-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
-      <div><Label className="text-xs">New account type</Label>
-        <select value={t} onChange={(e) => setType(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm capitalize">{missing.map((x) => <option key={x} value={x}>{x}</option>)}</select>
+    <form onSubmit={submit} className="mt-4 grid items-end gap-3 rounded-xl border border-dashed border-border p-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
+      <div>
+        <Label className="text-xs">Add Account Type</Label>
+        <select
+          value={t}
+          onChange={(e) => setType(e.target.value)}
+          className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-xs capitalize"
+        >
+          {missing.map((x) => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
+        </select>
       </div>
-      <div><Label className="text-xs">{t === "credit" ? "Amount owed" : "Opening balance"}</Label><Input className="mt-1" inputMode="decimal" value={bal} onChange={(e) => setBal(e.target.value)} /></div>
-      <div>{t === "credit" && <><Label className="text-xs">Credit limit</Label><Input className="mt-1" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} /></>}</div>
-      <Button type="submit" size="sm" disabled={m.isPending}><Plus /> Add account</Button>
+      <div>
+        <Label className="text-xs">{t === "credit" ? "Amount Owed" : "Opening Balance"}</Label>
+        <Input className="mt-1 h-9 text-xs" inputMode="decimal" value={bal} onChange={(e) => setBal(e.target.value)} />
+      </div>
+      <div>
+        {t === "credit" && (
+          <>
+            <Label className="text-xs">Credit Limit</Label>
+            <Input className="mt-1 h-9 text-xs" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
+          </>
+        )}
+      </div>
+      <Button type="submit" size="sm" className="text-xs" disabled={m.isPending}>
+        <Plus className="mr-1 size-3.5" /> Add
+      </Button>
     </form>
   );
 }
 
-const QUESTIONS = ["What was the name of your first pet?", "In what city were you born?", "What was the name of your childhood friend?", "What was your first job?"];
+const QUESTIONS = [
+  "What was the name of your first pet?",
+  "In what city were you born?",
+  "What was the name of your childhood friend?",
+  "What was your first job?",
+];
+
 const emptyProfile = { first_name: "", last_name: "", phone: "", address: "", city: "", postal_code: "" };
 const emptySec = { security_question_one: QUESTIONS[0]!, answer_one: "", security_question_two: QUESTIONS[1]!, answer_two: "" };
 
@@ -409,77 +1230,137 @@ function SecurityFields({ v, set }: { v: typeof emptySec; set: (v: typeof emptyS
     <>
       {([["security_question_one", "answer_one"], ["security_question_two", "answer_two"]] as const).map(([q, a], i) => (
         <div key={q} className="space-y-2">
-          <Label className="text-xs">Security question {i + 1}</Label>
-          <select value={v[q]} onChange={(e) => set({ ...v, [q]: e.target.value })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{QUESTIONS.map((x) => <option key={x}>{x}</option>)}</select>
-          <Input placeholder="Answer" value={v[a]} onChange={(e) => set({ ...v, [a]: e.target.value })} />
+          <Label className="text-xs">Question {i + 1}</Label>
+          <select
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+            value={v[q]}
+            onChange={(e) => set({ ...v, [q]: e.target.value })}
+          >
+            {QUESTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          <Input
+            placeholder="Answer"
+            className="text-xs"
+            value={v[a]}
+            onChange={(e) => set({ ...v, [a]: e.target.value })}
+          />
         </div>
       ))}
     </>
   );
 }
 
-function ProfileFields({ v, set }: { v: typeof emptyProfile; set: (v: typeof emptyProfile) => void }) {
+function CreateProfile({ userId }: { userId: string }) {
+  const m = useAdminAction(useServerFn(createProfileForCustomer), "Profile created");
+  const [p, setP] = useState(emptyProfile);
+  const [s, setS] = useState(emptySec);
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    m.mutate({ userId, ...p, ...s });
+  };
   return (
-    <>
-      {(Object.keys(v) as (keyof typeof emptyProfile)[]).map((k) => (
-        <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
-          <Label className="text-xs capitalize">{k.replace("_", " ")}</Label>
-          <Input className="mt-1" value={v[k]} onChange={(e) => set({ ...v, [k]: e.target.value })} />
-        </div>
-      ))}
-    </>
+    <form onSubmit={submit} className="rounded-xl border border-dashed border-border bg-card p-6 space-y-4">
+      <h3 className="text-base font-semibold">Create Initial Customer Profile</h3>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(Object.keys(p) as (keyof typeof p)[]).map((k) => (
+          <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
+            <Label className="capitalize text-xs">{k.replace("_", " ")}</Label>
+            <Input className="mt-1 text-xs" value={p[k]} onChange={(e) => setP({ ...p, [k]: e.target.value })} />
+          </div>
+        ))}
+        <SecurityFields v={s} set={setS} />
+      </div>
+      <Button type="submit" size="sm" disabled={m.isPending}>
+        Create Profile
+      </Button>
+    </form>
+  );
+}
+
+function ResetSecurity({ userId }: { userId: string }) {
+  const m = useAdminAction(useServerFn(resetSecurityQuestions), "Security questions reset");
+  const [s, setS] = useState(emptySec);
+  const [open, setOpen] = useState(false);
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    m.mutate({ userId, ...s }, { onSuccess: () => setOpen(false) });
+  };
+  return (
+    <div>
+      <Button type="button" variant="outline" size="sm" className="text-xs" onClick={() => setOpen(!open)}>
+        <KeyRound className="mr-1.5 size-3.5" /> Reset Security Questions
+      </Button>
+      {open && (
+        <form onSubmit={submit} className="mt-4 space-y-3 rounded-lg border border-border p-4 bg-muted/20">
+          <SecurityFields v={s} set={setS} />
+          <Button type="submit" size="sm" disabled={m.isPending}>
+            Save New Questions
+          </Button>
+        </form>
+      )}
+    </div>
   );
 }
 
 function NewCustomerDialog() {
   const [open, setOpen] = useState(false);
+  const createM = useAdminAction(useServerFn(createCustomer), "Customer created", () => setOpen(false));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [p, setP] = useState(emptyProfile);
-  const [sec, setSec] = useState(emptySec);
-  const m = useAdminAction(useServerFn(createCustomer), "Customer created with starter accounts", () => { setOpen(false); setEmail(""); setPassword(""); setP(emptyProfile); setSec(emptySec); });
+  const [s, setS] = useState(emptySec);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createM.mutate({ email, password, ...p, ...s });
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button className="w-full" onClick={() => setOpen(true)}><UserPlus /> New customer</Button>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader><DialogTitle>Create customer</DialogTitle><DialogDescription>The login is ready to use immediately — no email confirmation needed.</DialogDescription></DialogHeader>
-        <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); m.mutate({ email, password, ...p, ...sec }); }}>
-          <div><Label className="text-xs">Email</Label><Input type="email" className="mt-1" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-          <div><Label className="text-xs">Password</Label><Input type="password" className="mt-1" placeholder="At least 10 characters" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-          <ProfileFields v={p} set={setP} />
-          <SecurityFields v={sec} set={setSec} />
-          <div className="sm:col-span-2"><Button type="submit" disabled={m.isPending}>{m.isPending ? "Creating…" : "Create customer"}</Button></div>
+      <Button size="sm" onClick={() => setOpen(true)} className="text-xs">
+        <UserPlus className="mr-1.5 size-3.5" /> Add Customer
+      </Button>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Bank Customer</DialogTitle>
+          <DialogDescription>
+            Creates an authenticated login and automatically provisions Everyday Checking, High-Yield Savings, and Gold Rewards accounts.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4 py-2">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-xs">Email</Label>
+              <Input type="email" className="mt-1 text-xs" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Password</Label>
+              <Input type="password" className="mt-1 text-xs" required placeholder="Min 10 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(Object.keys(p) as (keyof typeof p)[]).map((k) => (
+              <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
+                <Label className="capitalize text-xs">{k.replace("_", " ")}</Label>
+                <Input className="mt-1 text-xs" required value={p[k]} onChange={(e) => setP({ ...p, [k]: e.target.value })} />
+              </div>
+            ))}
+          </div>
+          <SecurityFields v={s} set={setS} />
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={createM.isPending || password.length < 10}>
+              Create Customer
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function CreateProfile({ userId }: { userId: string }) {
-  const [p, setP] = useState(emptyProfile);
-  const [sec, setSec] = useState(emptySec);
-  const m = useAdminAction(useServerFn(createProfileForCustomer), "Profile created");
-  return (
-    <section className="border border-border bg-card p-6">
-      <h3 className="text-xl">Create profile</h3>
-      <p className="mt-1 text-sm text-muted-foreground">This customer has no profile yet. Creating one also opens their starter accounts.</p>
-      <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); m.mutate({ userId, ...p, ...sec }); }}>
-        <ProfileFields v={p} set={setP} />
-        <SecurityFields v={sec} set={setSec} />
-        <div className="sm:col-span-2"><Button type="submit" disabled={m.isPending}>Create profile</Button></div>
-      </form>
-    </section>
-  );
-}
-
-function ResetSecurity({ userId }: { userId: string }) {
-  const [sec, setSec] = useState(emptySec);
-  const m = useAdminAction(useServerFn(resetSecurityQuestions), "Security questions reset", () => setSec(emptySec));
-  return (
-    <form className="mt-6 grid gap-4 border-t border-border pt-6 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); m.mutate({ userId, ...sec }); }}>
-      <h4 className="sm:col-span-2 font-medium">Reset security questions</h4>
-      <SecurityFields v={sec} set={setSec} />
-      <div className="sm:col-span-2"><Button type="submit" variant="outline" disabled={m.isPending}>Reset questions</Button></div>
-    </form>
   );
 }
