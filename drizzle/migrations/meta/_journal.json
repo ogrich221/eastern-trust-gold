@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790380014924,
+      "tag": "0000_create_customer_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790380556792,
+      "tag": "0001_create_bank_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790382753635,
+      "tag": "0002_admin_roles_and_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790383011887,
+      "tag": "0003_auto_grant_owner_admin",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790383232892,
+      "tag": "0004_remove_email_admin_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790640987036,
+      "tag": "0005_admin_transaction_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790728755233,
+      "tag": "0006_customer_transfers_payments",
+      "breakpoints": true
+    }
+  ]
+}
