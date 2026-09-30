@@ -136,16 +136,7 @@ function AuthPage() {
             {busy ? "Signing in…" : "Log in securely"}
           </Button>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            or
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <Button type="button" variant="outline" className="h-11 w-full" onClick={google}>
-            <Chrome />
-            Continue with Google
-          </Button>
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground pt-2">
             New to Eastern Trust?{" "}
             <Link to="/signup" className="text-primary hover:underline">
               Open an account
