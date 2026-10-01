@@ -173,7 +173,7 @@ export const listCustomers = createServerFn({ method: "GET" })
       }
     }
 
-    return users.users.map((u: any) => {
+    return (users.users as import("@supabase/supabase-js").User[]).map((u) => {
       const prof = profileList.find((p) => p.id === u.id) ?? null;
       const userAccounts = accountList.filter((a) => a.user_id === u.id).map((a) => ({
         ...a,
