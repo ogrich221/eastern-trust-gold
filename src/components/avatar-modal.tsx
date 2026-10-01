@@ -250,6 +250,7 @@ export function AvatarModal({
   initials,
   userId,
   onAvatarUpdated,
+  onSave,
 }: AvatarModalProps) {
   const [activeTab, setActiveTab] = useState("upload");
   const [previewUrl, setPreviewUrl] = useState<string>(currentAvatarUrl || "");
