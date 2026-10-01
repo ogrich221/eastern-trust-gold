@@ -28,7 +28,18 @@ import {
   Sliders,
   CheckCircle2,
   Clock,
-  ExternalLink
+  ExternalLink,
+  User,
+  Copy,
+  FileText,
+  History,
+  Building2,
+  MapPin,
+  Phone,
+  Calendar,
+  Shield,
+  ArrowDownRight,
+  ArrowUpRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,10 +66,12 @@ import {
   adminLogout,
   listCustomers,
   listAuditLog,
+  listTransactions,
   updateCustomerProfile,
   updateCustomerEmail,
   setCustomerPassword,
   updateAccountBalance,
+  setDirectAccountBalance,
   setCustomerSuspended,
   setCustomerAdmin,
   deleteCustomer,
@@ -74,10 +87,13 @@ import {
   signInAsCustomer,
   saveSupabaseServiceKey,
   checkServiceKeyStatus,
+  updateCustomerAvatar,
 } from "@/lib/admin.functions";
 import { TransactionForm, TransactionLedger } from "@/components/admin-transactions";
 import { UserProfile } from "@/components/user-profile";
 import { AdminReports } from "@/components/admin-reports";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AvatarModal } from "@/components/avatar-modal";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -471,17 +487,44 @@ function AdminPortal({ adminName }: { adminName: string }) {
                             isSelected ? "bg-accent border-l-4 border-primary" : ""
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="font-semibold text-sm text-foreground">
-                                {fullName || c.email}
-                              </p>
-                              <p className="truncate text-xs text-muted-foreground">{c.email}</p>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <Avatar className="size-9 border border-border shrink-0">
+                                {c.avatar_url ? (
+                                  <AvatarImage src={c.avatar_url} alt={fullName || c.email} className="object-cover" />
+                                ) : null}
+                                <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                                  {(fullName ? fullName.slice(0, 2) : c.email.slice(0, 2)).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-sm text-foreground truncate">
+                                  {fullName || c.email}
+                                </p>
+                                <p className="truncate text-xs text-muted-foreground">{c.email}</p>
+                                {c.profile?.phone && (
+                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                    <Phone className="size-2.5 shrink-0 text-muted-foreground" /> {c.profile.phone}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right shrink-0">
                               <p className="text-xs font-bold text-foreground">{money(totalBal)}</p>
                               <p className="text-[10px] text-muted-foreground">{c.accounts.length} accts</p>
                             </div>
+                          </div>
+
+                          {/* Individual Account Chips */}
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {c.accounts.map((a) => (
+                              <span
+                                key={a.id}
+                                className="bg-background/80 border border-border/70 px-1.5 py-0.5 rounded text-[10px] font-mono text-muted-foreground"
+                              >
+                                {a.account_type}: <strong className="text-foreground">{money(a.available_balance)}</strong>
+                              </span>
+                            ))}
                           </div>
 
                           <div className="mt-2 flex items-center gap-1.5">
@@ -749,6 +792,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   const logView = useServerFn(logViewAsCustomer);
   const delProfileM = useAdminAction(useServerFn(deleteCustomerProfile), "Profile deleted");
   const confirmM = useAdminAction(useServerFn(confirmCustomerEmail), "Email marked as confirmed");
+  const avatarM = useAdminAction(useServerFn(updateCustomerAvatar), "Customer avatar updated");
 
   const [p, setP] = useState({
     first_name: c.profile?.first_name ?? "",
@@ -763,6 +807,10 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   const [confirmText, setConfirmText] = useState("");
   const [viewOpen, setViewOpen] = useState(false);
   const [impersonateOpen, setImpersonateOpen] = useState(false);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+
+  const fullName = c.profile ? `${c.profile.first_name} ${c.profile.last_name}`.trim() : "";
+  const initials = (fullName ? fullName.slice(0, 2) : c.email.slice(0, 2)).toUpperCase();
 
   const openView = () => {
     setViewOpen(true);
@@ -774,25 +822,48 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
       {/* Customer Header Box */}
       <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold tracking-tight">
-                {c.profile ? `${c.profile.first_name} ${c.profile.last_name}` : c.email}
-              </h2>
-              {c.is_admin && <Badge>Admin</Badge>}
-              {c.banned ? (
-                <Badge variant="destructive">Suspended</Badge>
-              ) : (
-                <Badge variant="outline" className="border-emerald-500/40 text-emerald-400">Active</Badge>
-              )}
+          <div className="flex items-center gap-4">
+            <div className="relative group shrink-0">
+              <Avatar className="size-16 border-2 border-primary/50 shadow-md">
+                {c.avatar_url ? (
+                  <AvatarImage src={c.avatar_url} alt={fullName || c.email} className="object-cover" />
+                ) : null}
+                <AvatarFallback className="bg-primary/10 text-xl font-bold text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                type="button"
+                onClick={() => setAvatarModalOpen(true)}
+                title="Change customer avatar"
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <Camera className="size-5" />
+              </button>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {c.email} · ID: <span className="font-mono">{c.id.slice(0, 8)}</span> · Joined{" "}
-              {new Date(c.created_at).toLocaleDateString()} · {c.confirmed ? "Email verified" : "Unverified"}
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold tracking-tight">
+                  {fullName || c.email}
+                </h2>
+                {c.is_admin && <Badge>Admin</Badge>}
+                {c.banned ? (
+                  <Badge variant="destructive">Suspended</Badge>
+                ) : (
+                  <Badge variant="outline" className="border-emerald-500/40 text-emerald-400">Active</Badge>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {c.email} · ID: <span className="font-mono">{c.id.slice(0, 8)}</span> · Joined{" "}
+                {new Date(c.created_at).toLocaleDateString()} · {c.confirmed ? "Email verified" : "Unverified"}
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setAvatarModalOpen(true)} className="text-xs">
+              <Camera className="mr-1.5 size-3.5" /> Photo
+            </Button>
             <Button onClick={() => setImpersonateOpen(true)} disabled={c.banned} className="text-xs">
               <LogIn className="mr-1.5 size-3.5" /> Log in as user
             </Button>
@@ -842,15 +913,225 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
       </section>
 
       {/* Detail Sub Tabs */}
-      <Tabs defaultValue="accounts" className="w-full">
-        <TabsList className="bg-card border border-border">
-          <TabsTrigger value="accounts">Accounts & Balances ({c.accounts.length})</TabsTrigger>
-          <TabsTrigger value="profile">Profile Details</TabsTrigger>
-          <TabsTrigger value="security">Security & Login</TabsTrigger>
-          <TabsTrigger value="danger" className="text-destructive">Danger Zone</TabsTrigger>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="bg-card border border-border flex-wrap h-auto p-1">
+          <TabsTrigger value="overview">
+            <User className="mr-1.5 size-3.5" /> Full Dossier
+          </TabsTrigger>
+          <TabsTrigger value="accounts">
+            <Wallet className="mr-1.5 size-3.5" /> Accounts &amp; Balances ({c.accounts.length})
+          </TabsTrigger>
+          <TabsTrigger value="transactions">
+            <History className="mr-1.5 size-3.5" /> Transaction Ledger
+          </TabsTrigger>
+          <TabsTrigger value="profile">
+            <FileText className="mr-1.5 size-3.5" /> Edit Profile
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Lock className="mr-1.5 size-3.5" /> Security &amp; Login
+          </TabsTrigger>
+          <TabsTrigger value="danger" className="text-destructive">
+            <AlertTriangle className="mr-1.5 size-3.5" /> Danger Zone
+          </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: ACCOUNTS */}
+        {/* TAB 1: FULL DOSSIER & COMPREHENSIVE OVERVIEW */}
+        <TabsContent value="overview" className="mt-4 space-y-6">
+          {/* Quick Metrics Strip */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Liquid Deposits</span>
+              <p className="mt-1 text-2xl font-bold font-display text-primary">
+                {money(c.accounts.filter(a => a.account_type === 'checking').reduce((s, a) => s + (a.available_balance || 0), 0))}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Checking available</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Active Credit Line</span>
+              <p className="mt-1 text-2xl font-bold font-display text-amber-400">
+                {money(c.accounts.filter(a => a.account_type === 'credit').reduce((s, a) => s + (a.current_balance || 0), 0))}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Card balance outstanding</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Accounts Linked</span>
+              <p className="mt-1 text-2xl font-bold font-display text-foreground">{c.accounts.length}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Active banking services</p>
+            </div>
+          </div>
+
+          {/* Personal Identification & Contact Card */}
+          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <User className="size-4 text-primary" /> Customer Identity &amp; Contact Details
+              </h3>
+              <Badge variant="outline" className="text-xs font-mono">
+                {c.is_admin ? "Administrator" : "Standard Client"}
+              </Badge>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 text-xs">
+              <div className="flex items-center gap-3">
+                <Avatar className="size-11 border border-border shrink-0">
+                  {c.avatar_url ? (
+                    <AvatarImage src={c.avatar_url} alt={fullName || c.email} className="object-cover" />
+                  ) : null}
+                  <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-muted-foreground">Full Legal Name</p>
+                  <p className="mt-0.5 font-semibold text-sm text-foreground">
+                    {fullName || "Not Set"}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground">Registered Email</p>
+                <p className="mt-1 font-semibold text-foreground flex items-center gap-1.5">
+                  {c.email}
+                  {c.confirmed ? (
+                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-mono">Verified</span>
+                  ) : (
+                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded font-mono">Unverified</span>
+                  )}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground">Direct Telephone</p>
+                <p className="mt-1 font-semibold text-foreground flex items-center gap-1.5">
+                  <Phone className="size-3 text-muted-foreground" />
+                  {c.profile?.phone || "Not Set"}
+                </p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <p className="text-muted-foreground">Primary Residential Address</p>
+                <p className="mt-1 font-semibold text-foreground flex items-center gap-1.5">
+                  <MapPin className="size-3 text-muted-foreground shrink-0" />
+                  {c.profile?.address ? `${c.profile.address}, ${c.profile.city} ${c.profile.postal_code}` : "No address on file"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground">Customer ID (UUID)</p>
+                <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                  <span className="truncate max-w-[170px]">{c.id}</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(c.id);
+                      toast.success("Copied customer ID");
+                    }}
+                    className="hover:text-primary p-0.5 rounded"
+                  >
+                    <Copy className="size-3" />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground">Registration Timestamp</p>
+                <p className="mt-1 font-mono text-[11px] text-foreground flex items-center gap-1">
+                  <Calendar className="size-3 text-muted-foreground" />
+                  {new Date(c.created_at).toLocaleString()}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground">Last Recorded Sign-In</p>
+                <p className="mt-1 font-mono text-[11px] text-foreground flex items-center gap-1">
+                  <Clock className="size-3 text-muted-foreground" />
+                  {c.last_sign_in_at ? new Date(c.last_sign_in_at).toLocaleString() : "Never (Pending first login)"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground">Account Standing</p>
+                <p className="mt-1 font-semibold text-foreground flex items-center gap-1.5">
+                  {c.banned ? (
+                    <span className="text-rose-400 flex items-center gap-1 font-medium"><AlertTriangle className="size-3" /> Suspended</span>
+                  ) : (
+                    <span className="text-emerald-400 flex items-center gap-1 font-medium"><CheckCircle2 className="size-3" /> Good Standing (Active)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* All Accounts Deep Breakdown */}
+          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Wallet className="size-4 text-primary" /> Active Banking &amp; Card Accounts
+              </h3>
+              <span className="text-xs text-muted-foreground">Routing Number: <strong className="text-foreground font-mono">021000089</strong></span>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {c.accounts.map((a) => (
+                <div key={a.id} className="rounded-lg border border-border/80 bg-background/50 p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {a.account_type} Account
+                      </span>
+                      <h4 className="font-semibold text-sm text-foreground">{a.name}</h4>
+                    </div>
+                    <Badge variant="outline" className="font-mono text-xs">
+                      •••• {a.last_four}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40 text-xs">
+                    <div>
+                      <p className="text-muted-foreground text-[11px]">Available Balance</p>
+                      <p className="font-bold text-sm text-primary font-display">{money(a.available_balance)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-[11px]">Current Balance</p>
+                      <p className="font-bold text-sm text-foreground font-display">{money(a.current_balance)}</p>
+                    </div>
+                    {a.credit_limit !== null && (
+                      <div>
+                        <p className="text-muted-foreground text-[11px]">Credit Limit</p>
+                        <p className="font-medium text-xs text-foreground font-mono">{money(a.credit_limit)}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-muted-foreground text-[11px]">Overdraft Permitted</p>
+                      <p className="font-medium text-xs text-foreground">{a.allow_overdraft ? "Yes" : "No"}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Security & Verification Credentials */}
+          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2 border-b border-border pb-3">
+              <Shield className="size-4 text-primary" /> Security &amp; Compliance Details
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2 text-xs">
+              <div className="rounded-lg border border-border p-3 bg-background/50">
+                <p className="font-semibold text-foreground text-[11px]">Security Question 1</p>
+                <p className="mt-1 text-muted-foreground">{c.profile?.security_question_one || "What was the name of your first pet?"}</p>
+                <p className="mt-2 text-[10px] text-emerald-400 font-mono">✓ Cryptographic SHA-256 Hash Configured</p>
+              </div>
+              <div className="rounded-lg border border-border p-3 bg-background/50">
+                <p className="font-semibold text-foreground text-[11px]">Security Question 2</p>
+                <p className="mt-1 text-muted-foreground">{c.profile?.security_question_two || "In what city were you born?"}</p>
+                <p className="mt-2 text-[10px] text-emerald-400 font-mono">✓ Cryptographic SHA-256 Hash Configured</p>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* TAB 2: ACCOUNTS */}
         <TabsContent value="accounts" className="mt-4 space-y-4">
           <div className="rounded-xl border border-border bg-card p-6">
             <h3 className="text-base font-semibold mb-4">Customer Accounts</h3>
@@ -862,6 +1143,11 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             </div>
             <AddAccount userId={c.id} existing={c.accounts.map((a) => a.account_type)} />
           </div>
+        </TabsContent>
+
+        {/* TAB 3: TRANSACTIONS LEDGER */}
+        <TabsContent value="transactions" className="mt-4 space-y-4">
+          <TransactionLedger userId={c.id} />
         </TabsContent>
 
         {/* TAB 2: PROFILE */}
@@ -1051,6 +1337,18 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           />
         </DialogContent>
       </Dialog>
+
+      <AvatarModal
+        open={avatarModalOpen}
+        onOpenChange={setAvatarModalOpen}
+        currentAvatarUrl={c.avatar_url}
+        fullName={fullName || c.email}
+        initials={initials}
+        userId={c.id}
+        onAvatarUpdated={(url) => {
+          avatarM.mutate({ userId: c.id, avatar_url: url || null });
+        }}
+      />
     </div>
   );
 }

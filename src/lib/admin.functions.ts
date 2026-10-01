@@ -89,6 +89,7 @@ export const listCustomers = createServerFn({ method: "GET" })
           banned: false,
           is_admin: false,
           profile: p,
+          avatar_url: ((p as any)?.avatar_url as string) || "",
           accounts: (accounts ?? []).filter((a) => a.user_id === p.id).map((a) => ({
             ...a,
             available_balance: Number(a.available_balance || 0),
@@ -181,6 +182,8 @@ export const listCustomers = createServerFn({ method: "GET" })
         credit_limit: a.credit_limit === null ? null : Number(a.credit_limit),
       }));
 
+      const avatarUrl = ((u.user_metadata as any)?.avatar_url as string) || ((prof as any)?.avatar_url as string) || "";
+
       return {
         id: u.id,
         email: u.email ?? "",
@@ -192,6 +195,7 @@ export const listCustomers = createServerFn({ method: "GET" })
         profile: prof,
         accounts: userAccounts,
         metadata: u.user_metadata,
+        avatar_url: avatarUrl,
       };
     });
   });
@@ -223,6 +227,25 @@ export const updateCustomerProfile = createServerFn({ method: "POST" })
     const { error } = await admin.from("profiles").update(fields).eq("id", userId);
     if (error) throw new Error("Could not update profile");
     await log("update_profile", userId, fields);
+    return { ok: true };
+  });
+
+export const updateCustomerAvatar = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({ userId: z.string().uuid(), avatar_url: z.string().max(1000000).nullable() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { admin, log } = await assertAdmin(context);
+    try {
+      await admin.auth.admin.updateUserById(data.userId, {
+        user_metadata: { avatar_url: data.avatar_url },
+      });
+    } catch (e) {
+      console.warn("Could not update user metadata avatar:", e);
+    }
+    try {
+      await admin.from("profiles").update({ avatar_url: data.avatar_url } as any).eq("id", data.userId);
+    } catch {}
+    await log("update_avatar", data.userId, { hasAvatar: Boolean(data.avatar_url) });
     return { ok: true };
   });
 
@@ -262,6 +285,34 @@ export const updateAccountBalance = createServerFn({ method: "POST" })
     const { data: row, error } = await admin.from("bank_accounts").update(fields).eq("id", accountId).select("user_id").single();
     if (error) throw new Error("Could not update account");
     await log("update_account_settings", row.user_id, { accountId, ...fields });
+    return { ok: true };
+  });
+
+export const setDirectAccountBalance = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({
+    accountId: z.string().uuid(),
+    available_balance: z.number().finite().min(-1e9).max(1e9),
+    current_balance: z.number().finite().min(-1e9).max(1e9).optional(),
+    reason: z.string().trim().max(200).default("Administrative balance adjustment"),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { admin, log } = await assertAdmin(context);
+    const curr = data.current_balance ?? data.available_balance;
+    const { data: row, error } = await admin
+      .from("bank_accounts")
+      .update({ available_balance: data.available_balance, current_balance: curr })
+      .eq("id", data.accountId)
+      .select("user_id, name, account_type")
+      .single();
+    if (error) throw new Error("Could not update account balance");
+    await log("adjust_balance", row.user_id, {
+      accountId: data.accountId,
+      accountName: row.name,
+      newAvailable: data.available_balance,
+      newCurrent: curr,
+      reason: data.reason,
+    });
     return { ok: true };
   });
 

@@ -169,13 +169,26 @@ function RootComponent() {
   const router = useRouter();
   const navigate = useNavigate();
   const [signedIn, setSignedIn] = useState(false);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
+    supabase.auth.getSession().then(({ data }) => {
+      setSignedIn(Boolean(data.session));
+      if (data.session?.user) {
+        const metaUrl = (data.session.user.user_metadata?.avatar_url as string) || (typeof window !== "undefined" ? localStorage.getItem(`etb_avatar_${data.session.user.id}`) : null);
+        setUserAvatar(metaUrl || null);
+      }
+    });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       setSignedIn(Boolean(session));
+      if (session?.user) {
+        const metaUrl = (session.user.user_metadata?.avatar_url as string) || (typeof window !== "undefined" ? localStorage.getItem(`etb_avatar_${session.user.id}`) : null);
+        setUserAvatar(metaUrl || null);
+      } else {
+        setUserAvatar(null);
+      }
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
@@ -205,11 +218,58 @@ function RootComponent() {
             {links.map(([label, to]) => <Link key={to} to={to} className="text-sm text-muted-foreground transition-colors hover:text-primary" activeProps={{ className: "text-primary" }}>{label}</Link>)}
           </nav>
           <div className="hidden items-center gap-3 lg:flex">
-            {signedIn ? <><Button asChild variant="outline"><Link to="/dashboard">My account</Link></Button><Button onClick={signOut}>Sign out</Button></> : <><Button asChild variant="ghost"><Link to="/auth">Log in</Link></Button><Button asChild><Link to="/signup">Open an account</Link></Button></>}
+            {signedIn ? (
+              <>
+                <Button asChild variant="outline" className="flex items-center gap-2">
+                  <Link to="/dashboard">
+                    <span className="relative flex size-5 shrink-0 overflow-hidden rounded-full border border-primary/40">
+                      {userAvatar ? (
+                        <img src={userAvatar} alt="Profile" className="size-full object-cover" />
+                      ) : (
+                        <span className="flex size-full items-center justify-center bg-primary/10 text-[9px] font-semibold text-primary">ET</span>
+                      )}
+                    </span>
+                    My account
+                  </Link>
+                </Button>
+                <Button onClick={signOut}>Sign out</Button>
+              </>
+            ) : (
+              <>
+                <Button asChild variant="ghost"><Link to="/auth">Log in</Link></Button>
+                <Button asChild><Link to="/signup">Open an account</Link></Button>
+              </>
+            )}
           </div>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X /> : <Menu />}</Button>
         </div>
-        {menuOpen && <nav className="border-t border-border px-5 py-5 lg:hidden">{links.map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)} className="block border-b border-border py-3 text-sm">{label}</Link>)}<div className="mt-4 flex gap-3"><Button asChild variant="outline" className="flex-1"><Link to="/auth">Log in</Link></Button><Button asChild className="flex-1"><Link to="/signup">Open account</Link></Button></div></nav>}
+        {menuOpen && (
+          <nav className="border-t border-border px-5 py-5 lg:hidden">
+            {links.map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)} className="block border-b border-border py-3 text-sm">{label}</Link>)}
+            {signedIn ? (
+              <div className="mt-4 flex gap-3">
+                <Button asChild variant="outline" className="flex-1 flex items-center justify-center gap-2" onClick={() => setMenuOpen(false)}>
+                  <Link to="/dashboard">
+                    <span className="relative flex size-5 shrink-0 overflow-hidden rounded-full border border-primary/40">
+                      {userAvatar ? (
+                        <img src={userAvatar} alt="Profile" className="size-full object-cover" />
+                      ) : (
+                        <span className="flex size-full items-center justify-center bg-primary/10 text-[9px] font-semibold text-primary">ET</span>
+                      )}
+                    </span>
+                    My account
+                  </Link>
+                </Button>
+                <Button onClick={() => { setMenuOpen(false); signOut(); }} className="flex-1">Sign out</Button>
+              </div>
+            ) : (
+              <div className="mt-4 flex gap-3">
+                <Button asChild variant="outline" className="flex-1"><Link to="/auth">Log in</Link></Button>
+                <Button asChild className="flex-1"><Link to="/signup">Open account</Link></Button>
+              </div>
+            )}
+          </nav>
+        )}
       </header>
       <Outlet />
     </QueryClientProvider>

@@ -42,6 +42,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CustomerBanking } from "./customer-banking";
+import { AvatarModal } from "./avatar-modal";
 
 export type ProfileAccount = {
   id: string;
@@ -68,7 +69,7 @@ export type ProfileData = {
 };
 
 interface UserProfileProps {
-  user: { id: string; email?: string };
+  user: { id: string; email?: string; user_metadata?: Record<string, any> };
   initialProfile?: ProfileData | null;
   accounts: ProfileAccount[];
   onRefresh?: () => void;
@@ -123,11 +124,13 @@ export function UserProfile({
 
   // Avatar customization
   const [avatarUrl, setAvatarUrl] = useState<string>(() => {
+    const metaUrl = (user as any)?.user_metadata?.avatar_url;
     if (typeof window !== "undefined") {
-      return initialProfile?.avatar_url || localStorage.getItem(`etb_avatar_${user.id}`) || "";
+      return metaUrl || initialProfile?.avatar_url || localStorage.getItem(`etb_avatar_${user.id}`) || "";
     }
-    return initialProfile?.avatar_url || "";
+    return metaUrl || initialProfile?.avatar_url || "";
   });
+  const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
 
   // Linked cards interactive controls
   const [isCardFrozen, setIsCardFrozen] = useState(false);
@@ -254,17 +257,7 @@ export function UserProfile({
   };
 
   const handleAvatarChange = () => {
-    const newUrl = prompt(
-      "Enter an image URL for your profile photo (or leave blank for initials):",
-      avatarUrl
-    );
-    if (newUrl !== null) {
-      setAvatarUrl(newUrl);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(`etb_avatar_${user.id}`, newUrl);
-      }
-      toast.success("Profile photo updated");
-    }
+    setIsAvatarDialogOpen(true);
   };
 
   // Filter visible accounts (High-Yield Savings & Wealth Portfolio removed per requirements)
@@ -408,6 +401,14 @@ export function UserProfile({
             >
               {hideBalances ? <Eye className="mr-1.5 size-3.5" /> : <EyeOff className="mr-1.5 size-3.5" />}
               {hideBalances ? "Show Balances" : "Hide Balances"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAvatarDialogOpen(true)}
+              className="text-xs"
+            >
+              <Camera className="mr-1.5 size-3.5" /> Photo
             </Button>
             <Button
               variant="outline"
@@ -1760,6 +1761,33 @@ export function UserProfile({
             }}
             className="space-y-4"
           >
+            {/* Profile Photo Preview & Change in Edit Dialog */}
+            <div className="flex items-center gap-3.5 rounded-lg border border-border/70 bg-muted/30 p-3">
+              <Avatar className="size-12 border border-border shrink-0">
+                {avatarUrl ? (
+                  <AvatarImage src={avatarUrl} alt={fullName} className="object-cover" />
+                ) : null}
+                <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">Profile Picture</p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {avatarUrl ? "Custom photo active" : "Using monogram initials"}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAvatarDialogOpen(true)}
+                className="text-xs shrink-0"
+              >
+                <Camera className="mr-1.5 size-3.5" /> Change Photo
+              </Button>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="first_name" className="text-xs">
@@ -1854,6 +1882,19 @@ export function UserProfile({
           </form>
         </DialogContent>
       </Dialog>
+
+      <AvatarModal
+        open={isAvatarDialogOpen}
+        onOpenChange={setIsAvatarDialogOpen}
+        currentAvatarUrl={avatarUrl}
+        fullName={fullName}
+        initials={initials}
+        userId={user.id}
+        onAvatarUpdated={(newUrl) => {
+          setAvatarUrl(newUrl);
+          onRefresh?.();
+        }}
+      />
     </div>
   );
 }
