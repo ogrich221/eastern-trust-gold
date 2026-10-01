@@ -87,6 +87,7 @@ import {
   renameCustomerAccount,
   removeCustomerAccount,
   signInAsCustomer,
+  signOutCustomer,
   saveSupabaseServiceKey,
   checkServiceKeyStatus,
   updateCustomerAvatar,
@@ -797,6 +798,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   const confirmM = useAdminAction(useServerFn(confirmCustomerEmail), "Email marked as confirmed");
   const avatarM = useAdminAction(useServerFn(updateCustomerAvatar), "Customer avatar updated");
   const contactInfoM = useAdminAction(useServerFn(updateCustomerContactInfo), "Personal contact information updated");
+  const signOutM = useAdminAction(useServerFn(signOutCustomer), "Customer signed out of all devices");
 
   const [p, setP] = useState({
     first_name: c.profile?.first_name ?? "",
@@ -874,6 +876,17 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             </Button>
             <Button onClick={() => setImpersonateOpen(true)} disabled={c.banned} className="text-xs">
               <LogIn className="mr-1.5 size-3.5" /> Log in as user
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              disabled={signOutM.isPending}
+              onClick={() => {
+                if (window.confirm(`Sign ${c.email} out of every device?`)) signOutM.mutate({ userId: c.id });
+              }}
+            >
+              <LogOut className="mr-1.5 size-3.5" /> {signOutM.isPending ? "Signing out..." : "Sign out customer"}
             </Button>
             <Button variant="outline" size="sm" onClick={openView} className="text-xs">
               <Eye className="mr-1.5 size-3.5" /> View Profile

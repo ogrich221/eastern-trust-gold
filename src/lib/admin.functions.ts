@@ -776,6 +776,30 @@ export const signInAsCustomer = createServerFn({ method: "POST" })
     return { url: `${origin}/auth?login_token=${encodeURIComponent(hash)}&login_type=${vtype}` };
   });
 
+export const signOutCustomer = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { admin, log } = await assertAdmin(context);
+    const { data: u, error: ue } = await admin.auth.admin.getUserById(data.userId);
+    if (ue || !u.user?.email) throw new Error("Customer not found");
+    // Create a short-lived session for the customer, then revoke ALL of their sessions with it.
+    const { data: link, error: le } = await admin.auth.admin.generateLink({ type: "magiclink", email: u.user.email });
+    const hash = link?.properties?.hashed_token;
+    if (le || !hash) throw new Error(`Could not sign out customer${le?.message ? `: ${le.message}` : ""}`);
+    const vtype = link.properties?.verification_type === "signup" ? "signup" : "magiclink";
+    const { createClient } = await import("@supabase/supabase-js");
+    const temp = createClient(process.env["SUPABASE_URL"]!, process.env["SUPABASE_PUBLISHABLE_KEY"]!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: v, error: ve } = await temp.auth.verifyOtp({ token_hash: hash, type: vtype });
+    if (ve || !v.session) throw new Error(`Could not sign out customer${ve?.message ? `: ${ve.message}` : ""}`);
+    const { error: se } = await admin.auth.admin.signOut(v.session.access_token, "global");
+    if (se) throw new Error(`Could not sign out customer: ${se.message}`);
+    await log("sign_out_customer", data.userId, { customerEmail: u.user.email });
+    return { ok: true };
+  });
+
 export const getDashboardMetrics = createServerFn({ method: "GET" })
   .middleware([requireAdmin])
   .handler(async ({ context }) => {
