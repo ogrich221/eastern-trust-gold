@@ -64,6 +64,13 @@
       "when": 1790886047268,
       "tag": "0008_avatars_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790887768405,
+      "tag": "0009_drop_unused_avatar_policy",
+      "breakpoints": true
     }
   ]
 }
