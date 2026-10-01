@@ -754,14 +754,19 @@ export const signInAsCustomer = createServerFn({ method: "POST" })
       email: u.user.email,
     });
     const hash = link?.properties?.hashed_token;
-    if (error || !hash) throw new Error("Could not create sign-in link");
+    if (error || !hash) {
+      console.error("signInAsCustomer generateLink failed", error);
+      throw new Error(`Could not create sign-in link${error?.message ? `: ${error.message}` : ""}`);
+    }
+    // Unconfirmed customers get a "signup" token instead of a "magiclink" one.
+    const vtype = link.properties?.verification_type === "signup" ? "signup" : "magiclink";
     await log("impersonate_user", data.userId, {
       reason: data.reason,
       by: context.adminName,
       customerEmail: u.user.email,
     });
     // Token is verified on our own /auth page, so it works on any domain (preview, published, custom).
-    return { url: `${origin}/auth?login_token=${encodeURIComponent(hash)}` };
+    return { url: `${origin}/auth?login_token=${encodeURIComponent(hash)}&login_type=${vtype}` };
   });
 
 export const getDashboardMetrics = createServerFn({ method: "GET" })
