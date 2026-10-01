@@ -390,33 +390,29 @@ export function AvatarModal({
     const finalUrl = previewUrl.trim();
 
     try {
-      // 1. Persist to browser LocalStorage for instant cached rendering
-      if (typeof window !== "undefined") {
-        if (finalUrl) {
-          localStorage.setItem(`etb_avatar_${userId}`, finalUrl);
-        } else {
-          localStorage.removeItem(`etb_avatar_${userId}`);
-        }
-      }
-
-      // 2. Persist to Supabase Auth user_metadata
-      const { error: authError } = await supabase.auth.updateUser({
-        data: {
-          avatar_url: finalUrl || null,
-        },
-      });
-
-      if (authError) {
-        console.warn("Could not sync avatar to Supabase auth user_metadata:", authError.message);
-      }
-
-      // 3. Gracefully attempt to update profiles table if column exists
-      try {
-        await supabase
+      if (onSave) {
+        await onSave(finalUrl);
+      } else {
+        // Save to the customer's profile (the source of truth)
+        const { data: rows, error } = await supabase
           .from("profiles")
           .update({ avatar_url: finalUrl || null } as any)
-          .eq("id", userId);
-      } catch {}
+          .eq("id", userId)
+          .select("id");
+        if (error) throw new Error(`Could not save photo: ${error.message}`);
+        if (!rows || rows.length === 0) {
+          throw new Error("Your profile isn't set up yet, so the photo couldn't be saved. Please contact support.");
+        }
+        // Keep login data small: only store short web links there, never the photo itself
+        await supabase.auth.updateUser({
+          data: { avatar_url: finalUrl && !finalUrl.startsWith("data:") ? finalUrl : null },
+        });
+      }
+
+      if (typeof window !== "undefined") {
+        if (finalUrl) localStorage.setItem(`etb_avatar_${userId}`, finalUrl);
+        else localStorage.removeItem(`etb_avatar_${userId}`);
+      }
 
       onAvatarUpdated(finalUrl);
       toast.success(finalUrl ? "Profile picture updated successfully!" : "Profile photo removed.");
