@@ -45,7 +45,7 @@ function AuthPage() {
       adminLoginAttempt.result.then((msg) => {
         if (!on) return;
         if (msg) {
-          setError(`Could not sign in to this customer's account (${msg}). Please press "Log in as customer" again in the admin portal.`);
+          setError(`Could not sign in to this customer's account (${msg}). Please press "Log in as user" again in the admin portal.`);
         } else {
           window.history.replaceState(null, "", "/auth");
           navigate({ to: "/dashboard", replace: true });
