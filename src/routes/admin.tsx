@@ -1463,9 +1463,10 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
         fullName={fullName || c.email}
         initials={initials}
         userId={c.id}
-        onAvatarUpdated={(url) => {
-          avatarM.mutate({ userId: c.id, avatar_url: url || null });
+        onSave={async (url) => {
+          await avatarM.mutateAsync({ userId: c.id, avatar_url: url || null });
         }}
+        onAvatarUpdated={() => {}}
       />
 
       <EditContactInfoDialog

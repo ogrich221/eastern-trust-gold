@@ -153,6 +153,8 @@ interface AvatarModalProps {
   initials: string;
   userId: string;
   onAvatarUpdated: (newUrl: string) => void;
+  /** When provided (e.g. staff portal), saving is delegated entirely to this handler. */
+  onSave?: (newUrl: string) => Promise<void>;
 }
 
 /**
