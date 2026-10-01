@@ -427,6 +427,19 @@ export function UserProfile({
                 <Sparkles className="mr-1.5 size-3.5" /> Support Concierge
               </Link>
             </Button>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  window.location.assign("/auth");
+                }}
+              >
+                <LogOut className="mr-1.5 size-3.5" /> Sign out
+              </Button>
+            )}
           </div>
         </div>
 
