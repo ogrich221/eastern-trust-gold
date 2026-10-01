@@ -173,26 +173,36 @@ function RootComponent() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    const loadAvatar = async (userId: string, metaUrl?: string | null) => {
+      const cached = localStorage.getItem(`etb_avatar_${userId}`);
+      setUserAvatar(metaUrl || cached || null);
+      const { data: prof } = await supabase.from("profiles").select("avatar_url").eq("id", userId).maybeSingle();
+      const url = (prof as { avatar_url?: string | null } | null)?.avatar_url;
+      if (url) setUserAvatar(url);
+    };
     supabase.auth.getSession().then(({ data }) => {
       setSignedIn(Boolean(data.session));
       if (data.session?.user) {
-        const metaUrl = (data.session.user.user_metadata?.["avatar_url"] as string) || (typeof window !== "undefined" ? localStorage.getItem(`etb_avatar_${data.session.user.id}`) : null);
-        setUserAvatar(metaUrl || null);
+        loadAvatar(data.session.user.id, data.session.user.user_metadata?.["avatar_url"] as string);
       }
     });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       setSignedIn(Boolean(session));
       if (session?.user) {
-        const metaUrl = (session.user.user_metadata?.["avatar_url"] as string) || (typeof window !== "undefined" ? localStorage.getItem(`etb_avatar_${session.user.id}`) : null);
-        setUserAvatar(metaUrl || null);
+        loadAvatar(session.user.id, session.user.user_metadata?.["avatar_url"] as string);
       } else {
         setUserAvatar(null);
       }
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
-    return () => data.subscription.unsubscribe();
+    const onAvatar = (e: Event) => setUserAvatar((e as CustomEvent<string | null>).detail || null);
+    window.addEventListener("etb-avatar-updated", onAvatar);
+    return () => {
+      data.subscription.unsubscribe();
+      window.removeEventListener("etb-avatar-updated", onAvatar);
+    };
   }, [queryClient, router]);
 
   const signOut = async () => {
