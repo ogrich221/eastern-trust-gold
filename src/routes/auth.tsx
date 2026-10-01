@@ -24,6 +24,16 @@ function AuthPage() {
     const go = () => {
       if (on) navigate({ to: "/dashboard" });
     };
+    const loginToken = new URLSearchParams(window.location.search).get("login_token");
+    if (loginToken) {
+      (async () => {
+        await supabase.auth.signOut({ scope: "local" });
+        const { error: otpError } = await supabase.auth.verifyOtp({ token_hash: loginToken, type: "magiclink" });
+        if (otpError) setError("This sign-in link has expired or was already used. Please create a new one from the admin portal.");
+        else go();
+      })();
+      return () => { on = false; };
+    }
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) go();
     });
