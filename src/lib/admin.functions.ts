@@ -173,7 +173,7 @@ export const listCustomers = createServerFn({ method: "GET" })
       }
     }
 
-    return users.users.map((u) => {
+    return users.users.map((u: any) => {
       const prof = profileList.find((p) => p.id === u.id) ?? null;
       const userAccounts = accountList.filter((a) => a.user_id === u.id).map((a) => ({
         ...a,
