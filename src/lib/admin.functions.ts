@@ -75,7 +75,7 @@ export const listCustomers = createServerFn({ method: "GET" })
     if (error || !users?.users) {
       console.warn("Could not list users via Supabase auth admin API:", error?.message);
       const [{ data: profiles }, { data: accounts }] = await Promise.all([
-        admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at"),
+        admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two,avatar_url"),
         admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft"),
       ]);
 
