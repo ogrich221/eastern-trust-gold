@@ -75,7 +75,7 @@ export const listCustomers = createServerFn({ method: "GET" })
     if (error || !users?.users) {
       console.warn("Could not list users via Supabase auth admin API:", error?.message);
       const [{ data: profiles }, { data: accounts }] = await Promise.all([
-        admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at"),
+        admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two,avatar_url"),
         admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft"),
       ]);
 
@@ -113,8 +113,8 @@ export const listCustomers = createServerFn({ method: "GET" })
     // Auto-heal profiles and bank accounts for newly registered users
     for (const u of users.users) {
       let prof = profileList.find((p) => p.id === u.id);
-      const meta = (u.user_metadata ?? {}) as Record<string, any>;
-      const pending = (meta.pending_profile ?? meta) as Record<string, any>;
+      const meta = (u.user_metadata ?? {}) as any;
+      const pending = (meta.pending_profile ?? meta) as any;
 
       const hasMetaInfo = Boolean(
         pending.first_name || pending.last_name || meta.first_name || meta.last_name || meta.full_name
@@ -173,7 +173,7 @@ export const listCustomers = createServerFn({ method: "GET" })
       }
     }
 
-    return users.users.map((u) => {
+    return (users.users as import("@supabase/supabase-js").User[]).map((u) => {
       const prof = profileList.find((p) => p.id === u.id) ?? null;
       const userAccounts = accountList.filter((a) => a.user_id === u.id).map((a) => ({
         ...a,

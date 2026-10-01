@@ -1887,7 +1887,7 @@ export function UserProfile({
         open={isAvatarDialogOpen}
         onOpenChange={setIsAvatarDialogOpen}
         currentAvatarUrl={avatarUrl}
-        fullName={fullName}
+        fullName={fullName ?? ""}
         initials={initials}
         userId={user.id}
         onAvatarUpdated={(newUrl) => {

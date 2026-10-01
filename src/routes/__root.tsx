@@ -38,7 +38,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: any; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -176,7 +176,7 @@ function RootComponent() {
     supabase.auth.getSession().then(({ data }) => {
       setSignedIn(Boolean(data.session));
       if (data.session?.user) {
-        const metaUrl = (data.session.user.user_metadata?.avatar_url as string) || (typeof window !== "undefined" ? localStorage.getItem(`etb_avatar_${data.session.user.id}`) : null);
+        const metaUrl = (data.session.user.user_metadata?.["avatar_url"] as string) || (typeof window !== "undefined" ? localStorage.getItem(`etb_avatar_${data.session.user.id}`) : null);
         setUserAvatar(metaUrl || null);
       }
     });
@@ -184,7 +184,7 @@ function RootComponent() {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       setSignedIn(Boolean(session));
       if (session?.user) {
-        const metaUrl = (session.user.user_metadata?.avatar_url as string) || (typeof window !== "undefined" ? localStorage.getItem(`etb_avatar_${session.user.id}`) : null);
+        const metaUrl = (session.user.user_metadata?.["avatar_url"] as string) || (typeof window !== "undefined" ? localStorage.getItem(`etb_avatar_${session.user.id}`) : null);
         setUserAvatar(metaUrl || null);
       } else {
         setUserAvatar(null);
