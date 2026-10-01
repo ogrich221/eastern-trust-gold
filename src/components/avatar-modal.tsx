@@ -191,8 +191,54 @@ function compressImage(file: File, maxSize = 360, quality = 0.85): Promise<strin
   });
 }
 
-const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_IMAGE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+
+/** Grab a square frame from a video file. */
+function videoFrameToDataUrl(file: File, maxSize = 360, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    const cleanup = () => URL.revokeObjectURL(url);
+    video.onerror = () => {
+      cleanup();
+      reject(new Error("Unable to decode video file"));
+    };
+    video.onloadedmetadata = () => {
+      video.currentTime = Math.min(1, (video.duration || 0) / 2);
+    };
+    video.onseeked = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = maxSize;
+      canvas.height = maxSize;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        cleanup();
+        reject(new Error("Canvas context not available"));
+        return;
+      }
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      const minDim = Math.min(w, h);
+      ctx.drawImage(video, (w - minDim) / 2, (h - minDim) / 2, minDim, minDim, 0, 0, maxSize, maxSize);
+      cleanup();
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    video.src = url;
+  });
+}
+
+function guessKind(file: File): "image" | "video" | null {
+  const t = (file.type || "").toLowerCase();
+  if (t.startsWith("image/")) return "image";
+  if (t.startsWith("video/")) return "video";
+  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  if (["jpg", "jpeg", "png", "gif", "webp", "avif", "bmp", "svg", "heic", "heif", "tif", "tiff", "ico"].includes(ext)) return "image";
+  if (["mp4", "mov", "webm", "m4v", "ogv", "mkv"].includes(ext)) return "video";
+  return null;
+}
 
 export function AvatarModal({
   open,
@@ -217,6 +263,7 @@ export function AvatarModal({
   } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Synchronize initial state on dialog open
   const handleOpenChange = (nextOpen: boolean) => {
@@ -243,9 +290,9 @@ export function AvatarModal({
       return;
     }
 
-    if (!SUPPORTED_IMAGE_TYPES.includes(file.type.toLowerCase())) {
-      const typeStr = file.type || "unknown format";
-      const err = `Unsupported image format (${typeStr}). Eastern Trust Bank supports JPG, PNG, WEBP, and GIF images.`;
+    const kind = guessKind(file);
+    if (!kind) {
+      const err = `This file type (${file.type || file.name}) isn't a photo or video. Please choose an image or video.`;
       setValidationError(err);
       toast.error(err);
       return;
@@ -253,7 +300,7 @@ export function AvatarModal({
 
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-      const err = `File size (${sizeMb} MB) exceeds the maximum allowed limit of 10 MB. Please choose a smaller photo.`;
+      const err = `File size (${sizeMb} MB) exceeds the maximum allowed limit of 50 MB. Please choose a smaller file.`;
       setValidationError(err);
       toast.error(err);
       return;
@@ -261,26 +308,45 @@ export function AvatarModal({
 
     try {
       setIsProcessing(true);
-      const compressed = await compressImage(file, 360, 0.85);
+      const compressed =
+        kind === "video" ? await videoFrameToDataUrl(file) : await compressImage(file, 360, 0.85);
       const sizeKb = Math.round((compressed.length * 3) / 4 / 1024);
       setPreviewUrl(compressed);
       setFileDetails({
         name: file.name,
         originalSizeKb: Math.round(file.size / 1024),
         sizeKb,
-        format: file.type.replace("image/", "").toUpperCase(),
+        format: (file.type.split("/")[1] || file.name.split(".").pop() || "").toUpperCase(),
       });
       setValidationError(null);
-      toast.success("Profile photo loaded and optimized!");
+      toast.success(kind === "video" ? "Picked a frame from your video!" : "Profile photo loaded and optimized!");
     } catch (err) {
       console.error(err);
-      const msg = "Unable to process the selected photo. Please ensure it is a valid image.";
+      const msg =
+        "Your browser couldn't open this file. Try a different photo, or convert it to JPG first (some iPhone HEIC photos only open in Safari).";
       setValidationError(msg);
       toast.error(msg);
     } finally {
       setIsProcessing(false);
     }
   };
+
+  // Allow pasting an image from the clipboard while the dialog is open
+  useEffect(() => {
+    if (!open) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const item = Array.from(e.clipboardData?.items || []).find((i) => i.kind === "file");
+      const file = item?.getAsFile();
+      if (file) {
+        e.preventDefault();
+        setActiveTab("upload");
+        handleFile(file);
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -429,7 +495,7 @@ export function AvatarModal({
             <input
               type="file"
               ref={fileInputRef}
-              accept="image/png,image/jpeg,image/webp,image/gif"
+              accept="image/*,video/*,.heic,.heif,.avif,.svg,.bmp,.tif,.tiff"
               onChange={onFileInputChange}
               className="hidden"
             />
@@ -458,16 +524,32 @@ export function AvatarModal({
                 Select a photo from your device. Automatically cropped to a high-definition square.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2.5">
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">JPG</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">PNG</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">WEBP</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">GIF</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold">Max 10 MB</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">Any photo</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">Video frame</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">Paste</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold">Max 50 MB</span>
               </div>
               <Button type="button" variant="outline" size="sm" className="mt-3.5 text-xs">
                 Browse Files from Device
               </Button>
             </div>
+            <input
+              type="file"
+              ref={cameraInputRef}
+              accept="image/*"
+              capture="user"
+              onChange={onFileInputChange}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => cameraInputRef.current?.click()}
+            >
+              <Camera className="size-3.5 mr-1.5" /> Take a photo with camera
+            </Button>
 
             {validationError && (
               <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2.5">
