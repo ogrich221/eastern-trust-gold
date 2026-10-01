@@ -414,6 +414,9 @@ export function AvatarModal({
         if (finalUrl) localStorage.setItem(`etb_avatar_${userId}`, finalUrl);
         else localStorage.removeItem(`etb_avatar_${userId}`);
       }
+      if (!onSave && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("etb-avatar-updated", { detail: finalUrl || null }));
+      }
 
       onAvatarUpdated(finalUrl);
       toast.success(finalUrl ? "Profile picture updated successfully!" : "Profile photo removed.");
