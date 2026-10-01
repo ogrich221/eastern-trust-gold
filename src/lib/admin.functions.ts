@@ -752,15 +752,16 @@ export const signInAsCustomer = createServerFn({ method: "POST" })
     const { data: link, error } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: u.user.email,
-      options: { redirectTo: `${origin}/dashboard` },
     });
-    if (error || !link.properties?.action_link) throw new Error("Could not create sign-in link");
+    const hash = link?.properties?.hashed_token;
+    if (error || !hash) throw new Error("Could not create sign-in link");
     await log("impersonate_user", data.userId, {
       reason: data.reason,
       by: context.adminName,
       customerEmail: u.user.email,
     });
-    return { url: link.properties.action_link };
+    // Token is verified on our own /auth page, so it works on any domain (preview, published, custom).
+    return { url: `${origin}/auth?login_token=${encodeURIComponent(hash)}` };
   });
 
 export const getDashboardMetrics = createServerFn({ method: "GET" })
