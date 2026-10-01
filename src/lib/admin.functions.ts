@@ -235,16 +235,23 @@ export const updateCustomerAvatar = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ userId: z.string().uuid(), avatar_url: z.string().max(1000000).nullable() }).parse(d))
   .handler(async ({ data, context }) => {
     const { admin, log } = await assertAdmin(context);
+    const { data: rows, error } = await admin
+      .from("profiles")
+      .update({ avatar_url: data.avatar_url } as any)
+      .eq("id", data.userId)
+      .select("id");
+    if (error) throw new Error(`Could not save photo: ${error.message}`);
+    if (!rows || rows.length === 0) {
+      throw new Error("This customer has no profile yet. Create their profile first, then add a photo.");
+    }
+    // Keep only a small marker in login metadata (large photos bloat sign-in tokens)
     try {
       await admin.auth.admin.updateUserById(data.userId, {
-        user_metadata: { avatar_url: data.avatar_url },
+        user_metadata: { avatar_url: data.avatar_url && !data.avatar_url.startsWith("data:") ? data.avatar_url : null },
       });
     } catch (e) {
       console.warn("Could not update user metadata avatar:", e);
     }
-    try {
-      await admin.from("profiles").update({ avatar_url: data.avatar_url } as any).eq("id", data.userId);
-    } catch {}
     await log("update_avatar", data.userId, { hasAvatar: Boolean(data.avatar_url) });
     return { ok: true };
   });
