@@ -29,7 +29,8 @@ import {
   Clock,
   Layers,
   Sparkles,
-  Bell
+  Bell,
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -427,7 +428,7 @@ export function UserProfile({
                 <Sparkles className="mr-1.5 size-3.5" /> Support Concierge
               </Link>
             </Button>
-            {!readOnly && (
+            {!isAdminView && (
               <Button
                 variant="outline"
                 size="sm"
