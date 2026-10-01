@@ -11,6 +11,8 @@ export const Route = createFileRoute("/auth")({ head: () => ({ meta: [{ title: "
 
 import { toast } from "sonner";
 
+let adminLoginAttempt: { token: string; result: Promise<string | null> } | null = null;
+
 function AuthPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -24,14 +26,31 @@ function AuthPage() {
     const go = () => {
       if (on) navigate({ to: "/dashboard" });
     };
-    const loginToken = new URLSearchParams(window.location.search).get("login_token");
+    const params = new URLSearchParams(window.location.search);
+    const loginToken = params.get("login_token");
     if (loginToken) {
-      (async () => {
-        await supabase.auth.signOut({ scope: "local" });
-        const { error: otpError } = await supabase.auth.verifyOtp({ token_hash: loginToken, type: "magiclink" });
-        if (otpError) setError("This sign-in link has expired or was already used. Please create a new one from the admin portal.");
-        else go();
-      })();
+      const otpType = params.get("login_type") === "signup" ? "signup" : "magiclink";
+      // Verify once per page load (effects can run twice); the token is single-use.
+      if (!adminLoginAttempt || adminLoginAttempt.token !== loginToken) {
+        adminLoginAttempt = {
+          token: loginToken,
+          result: (async () => {
+            await supabase.auth.signOut({ scope: "local" });
+            const { data, error: otpError } = await supabase.auth.verifyOtp({ token_hash: loginToken, type: otpType });
+            if (otpError || !data.session) return otpError?.message || "No session was created.";
+            return null;
+          })(),
+        };
+      }
+      adminLoginAttempt.result.then((msg) => {
+        if (!on) return;
+        if (msg) {
+          setError(`Could not sign in to this customer's account (${msg}). Please press "Log in as customer" again in the admin portal.`);
+        } else {
+          window.history.replaceState(null, "", "/auth");
+          navigate({ to: "/dashboard", replace: true });
+        }
+      });
       return () => { on = false; };
     }
     supabase.auth.getSession().then(({ data }) => {
