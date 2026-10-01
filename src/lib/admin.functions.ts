@@ -113,8 +113,8 @@ export const listCustomers = createServerFn({ method: "GET" })
     // Auto-heal profiles and bank accounts for newly registered users
     for (const u of users.users) {
       let prof = profileList.find((p) => p.id === u.id);
-      const meta = (u.user_metadata ?? {}) as Record<string, any>;
-      const pending = (meta.pending_profile ?? meta) as Record<string, any>;
+      const meta = (u.user_metadata ?? {}) as any;
+      const pending = (meta.pending_profile ?? meta) as any;
 
       const hasMetaInfo = Boolean(
         pending.first_name || pending.last_name || meta.first_name || meta.last_name || meta.full_name
