@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -40,6 +40,8 @@ import {
   Shield,
   ArrowDownRight,
   ArrowUpRight,
+  Camera,
+  Edit3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +90,7 @@ import {
   saveSupabaseServiceKey,
   checkServiceKeyStatus,
   updateCustomerAvatar,
+  updateCustomerContactInfo,
 } from "@/lib/admin.functions";
 import { TransactionForm, TransactionLedger } from "@/components/admin-transactions";
 import { UserProfile } from "@/components/user-profile";
@@ -793,6 +796,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   const delProfileM = useAdminAction(useServerFn(deleteCustomerProfile), "Profile deleted");
   const confirmM = useAdminAction(useServerFn(confirmCustomerEmail), "Email marked as confirmed");
   const avatarM = useAdminAction(useServerFn(updateCustomerAvatar), "Customer avatar updated");
+  const contactInfoM = useAdminAction(useServerFn(updateCustomerContactInfo), "Personal contact information updated");
 
   const [p, setP] = useState({
     first_name: c.profile?.first_name ?? "",
@@ -808,6 +812,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   const [viewOpen, setViewOpen] = useState(false);
   const [impersonateOpen, setImpersonateOpen] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
 
   const fullName = c.profile ? `${c.profile.first_name} ${c.profile.last_name}`.trim() : "";
   const initials = (fullName ? fullName.slice(0, 2) : c.email.slice(0, 2)).toUpperCase();
@@ -861,6 +866,9 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setContactModalOpen(true)} className="text-xs">
+              <FileText className="mr-1.5 size-3.5" /> Edit Contact Info
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setAvatarModalOpen(true)} className="text-xs">
               <Camera className="mr-1.5 size-3.5" /> Photo
             </Button>
@@ -925,7 +933,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             <History className="mr-1.5 size-3.5" /> Transaction Ledger
           </TabsTrigger>
           <TabsTrigger value="profile">
-            <FileText className="mr-1.5 size-3.5" /> Edit Profile
+            <FileText className="mr-1.5 size-3.5" /> Contact Information
           </TabsTrigger>
           <TabsTrigger value="security">
             <Lock className="mr-1.5 size-3.5" /> Security &amp; Login
@@ -966,9 +974,19 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               <h3 className="text-sm font-semibold flex items-center gap-2">
                 <User className="size-4 text-primary" /> Customer Identity &amp; Contact Details
               </h3>
-              <Badge variant="outline" className="text-xs font-mono">
-                {c.is_admin ? "Administrator" : "Standard Client"}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setContactModalOpen(true)}
+                  className="text-xs h-7"
+                >
+                  <Edit3 className="mr-1 size-3" /> Edit Contact Info
+                </Button>
+                <Badge variant="outline" className="text-xs font-mono">
+                  {c.is_admin ? "Administrator" : "Standard Client"}
+                </Badge>
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 text-xs">
@@ -1154,9 +1172,16 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
         <TabsContent value="profile" className="mt-4">
           {!c.profile && <CreateProfile userId={c.id} />}
           {c.profile && (
-            <section className="rounded-xl border border-border bg-card p-6">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <h3 className="text-base font-semibold">Contact & Residential Details</h3>
+            <section className="rounded-xl border border-border bg-card p-6 space-y-5">
+              <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+                <div>
+                  <h3 className="text-base font-semibold flex items-center gap-2">
+                    <FileText className="size-4 text-primary" /> Personal Identity &amp; Contact Details
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    View and edit the customer's legal name, primary email address, phone number, and residential address.
+                  </p>
+                </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="sm" className="text-destructive text-xs">
@@ -1184,25 +1209,118 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                 className="grid gap-4 sm:grid-cols-2"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  profileM.mutate({ userId: c.id, ...p });
+                  contactInfoM.mutate({
+                    userId: c.id,
+                    email,
+                    first_name: p.first_name,
+                    last_name: p.last_name,
+                    phone: p.phone,
+                    address: p.address,
+                    city: p.city,
+                    postal_code: p.postal_code,
+                  });
                 }}
               >
-                {(Object.keys(p) as (keyof typeof p)[]).map((k) => (
-                  <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
-                    <Label htmlFor={k} className="capitalize text-xs">
-                      {k.replace("_", " ")}
-                    </Label>
-                    <Input
-                      id={k}
-                      className="mt-1"
-                      value={p[k]}
-                      onChange={(e) => setP({ ...p, [k]: e.target.value })}
-                    />
-                  </div>
-                ))}
+                <div>
+                  <Label htmlFor="prof-first-name" className="text-xs font-semibold">
+                    Legal First Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="prof-first-name"
+                    className="mt-1"
+                    value={p.first_name}
+                    onChange={(e) => setP({ ...p, first_name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="prof-last-name" className="text-xs font-semibold">
+                    Legal Last Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="prof-last-name"
+                    className="mt-1"
+                    value={p.last_name}
+                    onChange={(e) => setP({ ...p, last_name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="prof-email" className="text-xs font-semibold">
+                    Primary Email Address <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="prof-email"
+                    type="email"
+                    className="mt-1"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">Used for customer sign-in and security notifications.</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="prof-phone" className="text-xs font-semibold">
+                    Direct Telephone / Phone Number <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="prof-phone"
+                    className="mt-1"
+                    value={p.phone}
+                    onChange={(e) => setP({ ...p, phone: e.target.value })}
+                    placeholder="+1 (555) 000-0000"
+                    required
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">Direct telephone on file for customer contact and security.</p>
+                </div>
+
                 <div className="sm:col-span-2">
-                  <Button type="submit" size="sm" disabled={profileM.isPending}>
-                    Save Changes
+                  <Label htmlFor="prof-address" className="text-xs font-semibold">
+                    Primary Residential Street Address <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="prof-address"
+                    className="mt-1"
+                    value={p.address}
+                    onChange={(e) => setP({ ...p, address: e.target.value })}
+                    placeholder="123 Financial Way, Suite 400"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="prof-city" className="text-xs font-semibold">
+                    City <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="prof-city"
+                    className="mt-1"
+                    value={p.city}
+                    onChange={(e) => setP({ ...p, city: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="prof-postal" className="text-xs font-semibold">
+                    Postal / ZIP Code <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="prof-postal"
+                    className="mt-1"
+                    value={p.postal_code}
+                    onChange={(e) => setP({ ...p, postal_code: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="sm:col-span-2 pt-2 border-t border-border flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">All changes are recorded in the immutable administrative security audit log.</p>
+                  <Button type="submit" size="sm" disabled={contactInfoM.isPending}>
+                    {contactInfoM.isPending ? "Saving..." : "Save Contact Information"}
                   </Button>
                 </div>
               </form>
@@ -1349,6 +1467,12 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           avatarM.mutate({ userId: c.id, avatar_url: url || null });
         }}
       />
+
+      <EditContactInfoDialog
+        open={contactModalOpen}
+        onOpenChange={setContactModalOpen}
+        customer={c}
+      />
     </div>
   );
 }
@@ -1447,6 +1571,192 @@ function LogInAsUserDialog({
             {busy ? "Authorizing…" : "Launch Customer Session"}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditContactInfoDialog({
+  open,
+  onOpenChange,
+  customer,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  customer: Customer;
+}) {
+  const qc = useQueryClient();
+  const contactInfoFn = useServerFn(updateCustomerContactInfo);
+  const [form, setForm] = useState({
+    first_name: customer.profile?.first_name ?? "",
+    last_name: customer.profile?.last_name ?? "",
+    email: customer.email,
+    phone: customer.profile?.phone ?? "",
+    address: customer.profile?.address ?? "",
+    city: customer.profile?.city ?? "",
+    postal_code: customer.profile?.postal_code ?? "",
+  });
+
+  useEffect(() => {
+    setForm({
+      first_name: customer.profile?.first_name ?? "",
+      last_name: customer.profile?.last_name ?? "",
+      email: customer.email,
+      phone: customer.profile?.phone ?? "",
+      address: customer.profile?.address ?? "",
+      city: customer.profile?.city ?? "",
+      postal_code: customer.profile?.postal_code ?? "",
+    });
+  }, [customer]);
+
+  const m = useMutation({
+    mutationFn: (data: typeof form) => contactInfoFn({ data: { userId: customer.id, ...data } }),
+    onSuccess: () => {
+      toast.success("Contact details updated successfully");
+      qc.invalidateQueries({ queryKey: ["admin-customers"] });
+      qc.invalidateQueries({ queryKey: ["admin-audit"] });
+      onOpenChange(false);
+    },
+    onError: (e) => toast.error(errMsg(e)),
+  });
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.first_name.trim() || !form.last_name.trim()) {
+      toast.error("First and last name are required");
+      return;
+    }
+    if (!form.email.trim() || !form.email.includes("@")) {
+      toast.error("A valid email address is required");
+      return;
+    }
+    if (!form.phone.trim()) {
+      toast.error("A contact telephone number is required");
+      return;
+    }
+    m.mutate(form);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="size-5 text-primary" /> Edit Personal Contact Information
+          </DialogTitle>
+          <DialogDescription>
+            Update personal identity and direct contact records for{" "}
+            <strong>{customer.profile ? `${customer.profile.first_name} ${customer.profile.last_name}` : customer.email}</strong>.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={submit} className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="ci-first-name" className="text-xs font-semibold">
+                Legal First Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ci-first-name"
+                className="mt-1"
+                value={form.first_name}
+                onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="ci-last-name" className="text-xs font-semibold">
+                Legal Last Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ci-last-name"
+                className="mt-1"
+                value={form.last_name}
+                onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="ci-email" className="text-xs font-semibold">
+                Email Address <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ci-email"
+                type="email"
+                className="mt-1"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="ci-phone" className="text-xs font-semibold">
+                Telephone / Mobile <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ci-phone"
+                className="mt-1"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="+1 (555) 000-0000"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="ci-address" className="text-xs font-semibold">
+              Primary Residential Address <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="ci-address"
+              className="mt-1"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="123 Financial Way, Suite 400"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="ci-city" className="text-xs font-semibold">
+                City <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ci-city"
+                className="mt-1"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="ci-postal" className="text-xs font-semibold">
+                Postal / ZIP Code <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ci-postal"
+                className="mt-1"
+                value={form.postal_code}
+                onChange={(e) => setForm({ ...form, postal_code: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={m.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={m.isPending}>
+              {m.isPending ? "Saving..." : "Save Contact Information"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

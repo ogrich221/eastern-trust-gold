@@ -260,6 +260,61 @@ export const updateCustomerEmail = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateCustomerContactInfo = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator(
+    (d) =>
+      z
+        .object({
+          userId: z.string().uuid(),
+          email: z.string().trim().email().max(255).optional(),
+          first_name: z.string().trim().min(1).max(80),
+          last_name: z.string().trim().min(1).max(80),
+          phone: z.string().trim().min(3).max(40),
+          address: z.string().trim().min(1).max(200),
+          city: z.string().trim().min(1).max(100),
+          postal_code: z.string().trim().min(1).max(20),
+        })
+        .parse(d)
+  )
+  .handler(async ({ data, context }) => {
+    const { admin, log } = await assertAdmin(context);
+    const { userId, email, ...fields } = data;
+
+    // 1. Update or upsert profiles row
+    const { error: profError } = await admin.from("profiles").upsert({
+      id: userId,
+      ...fields,
+    });
+    if (profError) {
+      console.error("Could not update customer profile in contact info:", profError);
+      throw new Error("Could not update customer profile record");
+    }
+
+    // 2. Update user auth email & metadata if email provided
+    if (email) {
+      try {
+        await admin.auth.admin.updateUserById(userId, {
+          email,
+          email_confirm: true,
+          user_metadata: {
+            first_name: fields.first_name,
+            last_name: fields.last_name,
+            phone: fields.phone,
+            address: fields.address,
+            city: fields.city,
+            postal_code: fields.postal_code,
+          },
+        });
+      } catch (err: any) {
+        console.warn("Could not sync email/metadata to auth user:", err?.message);
+      }
+    }
+
+    await log("update_contact_info", userId, { email, ...fields });
+    return { ok: true };
+  });
+
 export const setCustomerPassword = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
   .inputValidator((d) => z.object({ userId: z.string().uuid(), password: z.string().min(10).max(128) }).parse(d))

@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Shield,
   User,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Dialog,
@@ -190,6 +191,9 @@ function compressImage(file: File, maxSize = 360, quality = 0.85): Promise<strin
   });
 }
 
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
 export function AvatarModal({
   open,
   onOpenChange,
@@ -204,7 +208,13 @@ export function AvatarModal({
   const [customUrl, setCustomUrl] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [fileDetails, setFileDetails] = useState<{ name: string; sizeKb: number } | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [fileDetails, setFileDetails] = useState<{
+    name: string;
+    originalSizeKb: number;
+    sizeKb: number;
+    format: string;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -216,17 +226,36 @@ export function AvatarModal({
         currentAvatarUrl && !currentAvatarUrl.startsWith("data:") ? currentAvatarUrl : ""
       );
       setFileDetails(null);
+      setValidationError(null);
     }
     onOpenChange(nextOpen);
   };
 
   const handleFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file (PNG, JPG, WEBP, GIF).");
+    setValidationError(null);
+
+    if (!file) return;
+
+    if (file.size === 0) {
+      const err = "Selected file is empty (0 bytes). Please choose a valid image file.";
+      setValidationError(err);
+      toast.error(err);
       return;
     }
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("Image file is too large (maximum 15MB).");
+
+    if (!SUPPORTED_IMAGE_TYPES.includes(file.type.toLowerCase())) {
+      const typeStr = file.type || "unknown format";
+      const err = `Unsupported image format (${typeStr}). Eastern Trust Bank supports JPG, PNG, WEBP, and GIF images.`;
+      setValidationError(err);
+      toast.error(err);
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      const err = `File size (${sizeMb} MB) exceeds the maximum allowed limit of 10 MB. Please choose a smaller photo.`;
+      setValidationError(err);
+      toast.error(err);
       return;
     }
 
@@ -235,11 +264,19 @@ export function AvatarModal({
       const compressed = await compressImage(file, 360, 0.85);
       const sizeKb = Math.round((compressed.length * 3) / 4 / 1024);
       setPreviewUrl(compressed);
-      setFileDetails({ name: file.name, sizeKb });
-      toast.success("Image processed and ready to save!");
+      setFileDetails({
+        name: file.name,
+        originalSizeKb: Math.round(file.size / 1024),
+        sizeKb,
+        format: file.type.replace("image/", "").toUpperCase(),
+      });
+      setValidationError(null);
+      toast.success("Profile photo loaded and optimized!");
     } catch (err) {
       console.error(err);
-      toast.error("Failed to process image. Please try another photo.");
+      const msg = "Unable to process the selected photo. Please ensure it is a valid image.";
+      setValidationError(msg);
+      toast.error(msg);
     } finally {
       setIsProcessing(false);
     }
@@ -248,6 +285,8 @@ export function AvatarModal({
   const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
+    // Reset file input so selecting the same file again triggers change
+    if (e.target) e.target.value = "";
   };
 
   const onDrop = (e: React.DragEvent) => {
@@ -416,12 +455,54 @@ export function AvatarModal({
                 Click to upload or drag &amp; drop
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Supports PNG, JPG, WEBP, or GIF up to 15MB. Automatically cropped to high-res square.
+                Select a photo from your device. Automatically cropped to a high-definition square.
               </p>
-              <Button type="button" variant="outline" size="sm" className="mt-3 text-xs">
-                Browse Files
+              <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2.5">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">JPG</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">PNG</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">WEBP</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground">GIF</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold">Max 10 MB</span>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="mt-3.5 text-xs">
+                Browse Files from Device
               </Button>
             </div>
+
+            {validationError && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2.5">
+                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-destructive" />
+                <div className="flex-1">
+                  <p className="font-semibold">Invalid File</p>
+                  <p className="mt-0.5 text-[11px] text-destructive/90">{validationError}</p>
+                </div>
+              </div>
+            )}
+
+            {fileDetails && (
+              <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-400 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="grid size-7 place-items-center rounded-full bg-emerald-500/20 text-emerald-400 shrink-0">
+                    <Check className="size-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate max-w-[220px]">{fileDetails.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {fileDetails.format} format · {fileDetails.originalSizeKb} KB original → {fileDetails.sizeKb} KB optimized
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-primary hover:text-primary/90 h-7"
+                >
+                  Change
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           {/* TAB 2: IMAGE URL */}
