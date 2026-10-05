@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export const Route = createFileRoute("/signup")({ head: () => ({ meta: [{ title: "Open an Account | Eastern Trust Bank" },{ name: "description", content: "Create your secure Eastern Trust Bank customer account." },{ property: "og:title", content: "Open an Account | Eastern Trust Bank" },{ property: "og:description", content: "Begin your relationship with Eastern Trust Bank." },{ property: "og:type", content: "website" },{ name: "twitter:card", content: "summary" }] }), component: SignupPage });
+export const Route = createFileRoute("/signup")({
+  staticData: { sitemap: true }, head: () => ({ meta: [{ title: "Open an Account | Eastern Trust Bank" },{ name: "description", content: "Create your secure Eastern Trust Bank customer account." },{ property: "og:title", content: "Open an Account | Eastern Trust Bank" },{ property: "og:description", content: "Begin your relationship with Eastern Trust Bank." },{ property: "og:type", content: "website" },{ name: "twitter:card", content: "summary" }] }), component: SignupPage });
 const firstQuestion="What was the name of your first school?";
 const secondQuestion="What city did your parents meet in?";
 const questions=[firstQuestion,secondQuestion,"What was the name of your childhood friend?","What was your first job?"];

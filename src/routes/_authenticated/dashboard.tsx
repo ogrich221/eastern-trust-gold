@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, type ProfileAccount, type ProfileData } from "@/components/user-profile";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "My Profile & Accounts | Eastern Trust Bank" },

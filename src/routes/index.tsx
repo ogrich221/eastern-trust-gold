@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import heroImage from "@/assets/eastern-trust-hero.jpg";
 
 export const Route = createFileRoute("/")({
+  staticData: { sitemap: true },
   head: () => ({ meta: [
     { title: "Eastern Trust Bank | Banking Built on Trust" },
     { name: "description", content: "Explore personal and business banking, lending, Bitcoin custody, and competitive rates at Eastern Trust Bank." },
