@@ -12,3 +12,5 @@
 - Keep customer banking data in Lovable Cloud behind user-scoped access policies because financial profiles are sensitive.
 - Use top-level public routes for banking content and the managed authenticated layout for customer-only pages.
 - Admin portal (/admin) uses its own username/password login (ADMIN_USERNAME/ADMIN_PASSWORD secrets, HMAC-signed HttpOnly cookie), independent of customer accounts — owner wants staff access separate from customer email logins.
+
+- Sitemap is router-derived: every route sets staticData.sitemap (true/false/"exclude-subtree") because the sitemap is generated from route decisions.

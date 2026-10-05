@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export const Route = createFileRoute("/auth")({ head: () => ({ meta: [{ title: "Log In | Eastern Trust Bank" },{ name: "description", content: "Securely access your Eastern Trust Bank account." },{ property: "og:title", content: "Log In | Eastern Trust Bank" },{ property: "og:description", content: "Secure customer account access." },{ property: "og:type", content: "website" },{ name: "twitter:card", content: "summary" }] }), component: AuthPage });
+export const Route = createFileRoute("/auth")({
+  staticData: { sitemap: false }, head: () => ({ meta: [{ title: "Log In | Eastern Trust Bank" },{ name: "description", content: "Securely access your Eastern Trust Bank account." },{ property: "og:title", content: "Log In | Eastern Trust Bank" },{ property: "og:description", content: "Secure customer account access." },{ property: "og:type", content: "website" },{ name: "twitter:card", content: "summary" }] }), component: AuthPage });
 
 import { toast } from "sonner";
 
