@@ -810,6 +810,18 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
     postal_code: c.profile?.postal_code ?? "",
   });
   const [email, setEmail] = useState(c.email);
+
+  useEffect(() => {
+    setP({
+      first_name: c.profile?.first_name ?? "",
+      last_name: c.profile?.last_name ?? "",
+      phone: c.profile?.phone ?? "",
+      address: c.profile?.address ?? "",
+      city: c.profile?.city ?? "",
+      postal_code: c.profile?.postal_code ?? "",
+    });
+    setEmail(c.email);
+  }, [c]);
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const [viewOpen, setViewOpen] = useState(false);
@@ -1307,13 +1319,14 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
 
                 <div>
                   <Label htmlFor="prof-city" className="text-xs font-semibold">
-                    City <span className="text-destructive">*</span>
+                    City, State / Region <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="prof-city"
                     className="mt-1"
                     value={p.city}
                     onChange={(e) => setP({ ...p, city: e.target.value })}
+                    placeholder="e.g. Atlanta, GA or New York, NY"
                     required
                   />
                 </div>
@@ -1327,6 +1340,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                     className="mt-1"
                     value={p.postal_code}
                     onChange={(e) => setP({ ...p, postal_code: e.target.value })}
+                    placeholder="e.g. 30303 or 10001"
                     required
                   />
                 </div>
@@ -1466,6 +1480,13 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               credit_limit: a.credit_limit === null ? null : Number(a.credit_limit),
             }))}
             isAdminView={true}
+            onSaveContact={async (data) => {
+              await contactInfoM.mutateAsync({
+                userId: c.id,
+                email: c.email,
+                ...data,
+              });
+            }}
           />
         </DialogContent>
       </Dialog>
@@ -1739,13 +1760,14 @@ function EditContactInfoDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="ci-city" className="text-xs font-semibold">
-                City <span className="text-destructive">*</span>
+                City, State / Region <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="ci-city"
                 className="mt-1"
                 value={form.city}
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
+                placeholder="e.g. Atlanta, GA or New York, NY"
                 required
               />
             </div>
@@ -1758,6 +1780,7 @@ function EditContactInfoDialog({
                 className="mt-1"
                 value={form.postal_code}
                 onChange={(e) => setForm({ ...form, postal_code: e.target.value })}
+                placeholder="e.g. 30303 or 10001"
                 required
               />
             </div>
@@ -1781,10 +1804,24 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
   const m = useAdminAction(useServerFn(updateAccountBalance), "Account settings saved");
   const renameM = useAdminAction(useServerFn(renameCustomerAccount), "Account details updated");
   const removeM = useAdminAction(useServerFn(removeCustomerAccount), "Account removed");
+  const directM = useAdminAction(useServerFn(setDirectAccountBalance), "Account balance adjusted");
   const [limit, setLimit] = useState(a.credit_limit === null ? "" : String(a.credit_limit));
   const [overdraft, setOverdraft] = useState(a.allow_overdraft);
   const [name, setName] = useState(a.name);
   const [four, setFour] = useState(a.last_four);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [directAvailable, setDirectAvailable] = useState(String(a.available_balance));
+  const [directCurrent, setDirectCurrent] = useState(String(a.current_balance));
+  const [directReason, setDirectReason] = useState("Administrative balance adjustment");
+
+  useEffect(() => {
+    setDirectAvailable(String(a.available_balance));
+    setDirectCurrent(String(a.current_balance));
+    setName(a.name);
+    setFour(a.last_four);
+    setLimit(a.credit_limit === null ? "" : String(a.credit_limit));
+    setOverdraft(a.allow_overdraft);
+  }, [a]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1814,11 +1851,24 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
             <p className="text-xs text-muted-foreground capitalize">{a.account_type} Account</p>
             <p className="text-base font-semibold text-foreground">{a.name} (•••• {a.last_four})</p>
           </div>
-          <div className="text-right">
+          <div className="text-right flex flex-col items-end gap-1">
             <p className="text-xs text-muted-foreground">Available Balance</p>
             <p className="text-xl font-bold text-primary font-display">
               {a.available_balance.toLocaleString("en-US", { style: "currency", currency: a.currency })}
             </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDirectAvailable(String(a.available_balance));
+                setDirectCurrent(String(a.current_balance));
+                setAdjustOpen(true);
+              }}
+              className="h-6 text-[10px] px-2 text-muted-foreground hover:text-foreground"
+            >
+              <Sliders className="mr-1 size-3" /> Adjust Directly
+            </Button>
           </div>
         </div>
 
@@ -1872,6 +1922,87 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
       </form>
 
       <TransactionForm a={a} />
+
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sliders className="size-4 text-primary" /> Direct Balance Override
+            </DialogTitle>
+            <DialogDescription>
+              Directly set the balances for {a.name} (•••• {a.last_four}). This adjustment will be recorded in the security audit log.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const avail = Number(directAvailable.replace(/,/g, ""));
+              const curr = Number(directCurrent.replace(/,/g, ""));
+              if (!Number.isFinite(avail) || !Number.isFinite(curr)) {
+                toast.error("Please enter valid numbers for balances");
+                return;
+              }
+              directM.mutate(
+                {
+                  accountId: a.id,
+                  available_balance: avail,
+                  current_balance: curr,
+                  reason: directReason.trim() || "Administrative balance adjustment",
+                },
+                {
+                  onSuccess: () => setAdjustOpen(false),
+                }
+              );
+            }}
+            className="space-y-4 py-2"
+          >
+            <div>
+              <Label className="text-xs font-semibold">Available Balance ({a.currency})</Label>
+              <Input
+                className="mt-1"
+                inputMode="decimal"
+                value={directAvailable}
+                onChange={(e) => setDirectAvailable(e.target.value)}
+                required
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Funds immediately available for spending or transfers.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">
+                {a.account_type === "credit" ? "Current Balance Owed (Card Debt)" : "Current / Ledger Balance"} ({a.currency})
+              </Label>
+              <Input
+                className="mt-1"
+                inputMode="decimal"
+                value={directCurrent}
+                onChange={(e) => setDirectCurrent(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Reason for Balance Override</Label>
+              <Input
+                className="mt-1"
+                maxLength={200}
+                value={directReason}
+                onChange={(e) => setDirectReason(e.target.value)}
+                placeholder="e.g. Account opening deposit correction, manual adjustment"
+                required
+              />
+            </div>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" size="sm" onClick={() => setAdjustOpen(false)} disabled={directM.isPending}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={directM.isPending}>
+                {directM.isPending ? "Applying…" : "Save Balance"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -75,6 +75,7 @@ interface UserProfileProps {
   accounts: ProfileAccount[];
   onRefresh?: () => void;
   isAdminView?: boolean;
+  onSaveContact?: (data: { first_name: string; last_name: string; phone: string; address: string; city: string; postal_code: string }) => Promise<void>;
 }
 
 const formatCurrency = (amount: number, currency = "USD") =>
@@ -232,19 +233,23 @@ export function UserProfile({
   const handleSaveContact = async () => {
     setIsSavingContact(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          first_name: contactForm.first_name,
-          last_name: contactForm.last_name,
-          phone: contactForm.phone,
-          address: contactForm.address,
-          city: contactForm.city,
-          postal_code: contactForm.postal_code,
-        })
-        .eq("id", user.id);
+      if (onSaveContact) {
+        await onSaveContact(contactForm);
+      } else {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            first_name: contactForm.first_name,
+            last_name: contactForm.last_name,
+            phone: contactForm.phone,
+            address: contactForm.address,
+            city: contactForm.city,
+            postal_code: contactForm.postal_code,
+          })
+          .eq("id", user.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       setProfile((prev) => ({ ...prev, ...contactForm }));
       toast.success("Contact details updated successfully");
