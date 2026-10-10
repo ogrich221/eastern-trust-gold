@@ -92,6 +92,7 @@ import {
   checkServiceKeyStatus,
   updateCustomerAvatar,
   updateCustomerContactInfo,
+  postTransaction,
 } from "@/lib/admin.functions";
 import { TransactionForm, TransactionLedger } from "@/components/admin-transactions";
 import { UserProfile } from "@/components/user-profile";
@@ -230,6 +231,8 @@ function AdminPortal({ adminName }: { adminName: string }) {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended" | "admin" | "unconfirmed">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [quickModalCustomer, setQuickModalCustomer] = useState<Customer | null>(null);
+  const [quickModalOpen, setQuickModalOpen] = useState(false);
 
   // Compute live overview metrics
   const metrics = useMemo(() => {
@@ -486,9 +489,17 @@ function AdminPortal({ adminName }: { adminName: string }) {
 
                     return (
                       <li key={c.id}>
-                        <button
+                        <div
                           onClick={() => setSelectedId(c.id)}
-                          className={`w-full p-4 text-left transition-colors hover:bg-accent/60 ${
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedId(c.id);
+                            }
+                          }}
+                          className={`w-full p-4 text-left transition-colors hover:bg-accent/60 cursor-pointer ${
                             isSelected ? "bg-accent border-l-4 border-primary" : ""
                           }`}
                         >
@@ -532,16 +543,31 @@ function AdminPortal({ adminName }: { adminName: string }) {
                             ))}
                           </div>
 
-                          <div className="mt-2 flex items-center gap-1.5">
-                            {c.is_admin && <Badge variant="outline" className="text-[10px] py-0">Admin</Badge>}
-                            {c.banned ? (
-                              <Badge variant="destructive" className="text-[10px] py-0">Suspended</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px] py-0 text-emerald-400 border-emerald-500/40">Active</Badge>
-                            )}
-                            {!c.confirmed && <Badge variant="secondary" className="text-[10px] py-0">Unconfirmed</Badge>}
+                          <div className="mt-2.5 flex items-center justify-between gap-1.5 border-t border-border/40 pt-2">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {c.is_admin && <Badge variant="outline" className="text-[10px] py-0">Admin</Badge>}
+                              {c.banned ? (
+                                <Badge variant="destructive" className="text-[10px] py-0">Suspended</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] py-0 text-emerald-400 border-emerald-500/40">Active</Badge>
+                              )}
+                              {!c.confirmed && <Badge variant="secondary" className="text-[10px] py-0">Unconfirmed</Badge>}
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[11px] px-2 font-semibold text-emerald-400 hover:text-emerald-300 border-emerald-500/30 hover:border-emerald-500/60 bg-emerald-500/10 hover:bg-emerald-500/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setQuickModalCustomer(c);
+                                setQuickModalOpen(true);
+                              }}
+                            >
+                              <TrendingUp className="mr-1 size-3" /> Credit / Debit
+                            </Button>
                           </div>
-                        </button>
+                        </div>
                       </li>
                     );
                   })}
@@ -769,6 +795,12 @@ function AdminPortal({ adminName }: { adminName: string }) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <QuickCreditDebitModal
+        open={quickModalOpen}
+        onOpenChange={setQuickModalOpen}
+        customer={quickModalCustomer}
+      />
     </main>
   );
 }
@@ -828,6 +860,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   const [impersonateOpen, setImpersonateOpen] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [quickCreditDebitOpen, setQuickCreditDebitOpen] = useState(false);
 
   const fullName = c.profile ? `${c.profile.first_name} ${c.profile.last_name}`.trim() : "";
   const initials = (fullName ? fullName.slice(0, 2) : c.email.slice(0, 2)).toUpperCase();
@@ -881,6 +914,13 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={() => setQuickCreditDebitOpen(true)}
+              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-sm"
+            >
+              <TrendingUp className="mr-1.5 size-3.5" /> Credit / Debit
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setContactModalOpen(true)} className="text-xs">
               <FileText className="mr-1.5 size-3.5" /> Edit Contact Info
             </Button>
@@ -1176,9 +1216,22 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
         </TabsContent>
 
         {/* TAB 2: ACCOUNTS */}
+        {/* TAB: ACCOUNTS */}
         <TabsContent value="accounts" className="mt-4 space-y-4">
           <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="text-base font-semibold mb-4">Customer Accounts</h3>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-base font-semibold">Customer Accounts</h3>
+                <p className="text-xs text-muted-foreground">Manage account parameters or immediately credit/debit liquid funds.</p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setQuickCreditDebitOpen(true)}
+                className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+              >
+                <TrendingUp className="mr-1.5 size-3.5" /> Credit / Debit
+              </Button>
+            </div>
             <div className="space-y-4">
               {c.accounts.length === 0 && <p className="text-sm text-muted-foreground">No accounts configured.</p>}
               {c.accounts.map((a) => (
@@ -1191,6 +1244,19 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
 
         {/* TAB 3: TRANSACTIONS LEDGER */}
         <TabsContent value="transactions" className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold">Transaction Ledger</h3>
+              <p className="text-xs text-muted-foreground">Audited history of credits, debits, wires, and adjustments.</p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setQuickCreditDebitOpen(true)}
+              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+            >
+              <TrendingUp className="mr-1.5 size-3.5" /> Post Credit / Debit
+            </Button>
+          </div>
           <TransactionLedger userId={c.id} />
         </TabsContent>
 
@@ -1509,6 +1575,12 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
         onOpenChange={setContactModalOpen}
         customer={c}
       />
+
+      <QuickCreditDebitModal
+        open={quickCreditDebitOpen}
+        onOpenChange={setQuickCreditDebitOpen}
+        customer={c}
+      />
     </div>
   );
 }
@@ -1795,6 +1867,310 @@ function EditContactInfoDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function QuickCreditDebitModal({
+  open,
+  onOpenChange,
+  customer,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  customer: Customer | null;
+}) {
+  const qc = useQueryClient();
+  const postTxn = useServerFn(postTransaction);
+  const addAcct = useServerFn(addCustomerAccount);
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [type, setType] = useState<"CREDIT" | "DEBIT">("CREDIT");
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("Administrative deposit");
+  const [reference, setReference] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [creatingAcct, setCreatingAcct] = useState(false);
+
+  useEffect(() => {
+    if (customer?.accounts && customer.accounts.length > 0) {
+      setSelectedAccountId(customer.accounts[0].id);
+      setAmount("");
+      setDescription(type === "CREDIT" ? "Administrative credit / deposit" : "Administrative debit / fee");
+      setReference("");
+    } else {
+      setSelectedAccountId("");
+    }
+  }, [customer, open, type]);
+
+  if (!customer) return null;
+
+  const currentAccount = customer.accounts.find((a) => a.id === selectedAccountId) ?? customer.accounts[0];
+  const numAmount = Number(amount.replace(/,/g, "").trim());
+  const validAmount = /^\d{1,10}(\.\d{1,2})?$/.test(amount.replace(/,/g, "").trim()) && numAmount > 0;
+
+  const before = Number(currentAccount?.available_balance || 0);
+  const after = currentAccount ? before + (type === "CREDIT" ? numAmount : -numAmount) : 0;
+  const isOverdraft = type === "DEBIT" && after < 0;
+
+  const handleCreateStarterAccount = async () => {
+    setCreatingAcct(true);
+    try {
+      await addAcct({
+        data: {
+          userId: customer.id,
+          account_type: "checking",
+          name: "Everyday Checking",
+          available_balance: 0,
+          current_balance: 0,
+          credit_limit: null,
+        },
+      });
+      toast.success("Everyday Checking account opened for customer");
+      await qc.invalidateQueries({ queryKey: ["admin-customers"] });
+    } catch (e: any) {
+      toast.error(errMsg(e));
+    } finally {
+      setCreatingAcct(false);
+    }
+  };
+
+  const handlePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentAccount) {
+      toast.error("Please select or initialize an account first");
+      return;
+    }
+    if (!validAmount) {
+      toast.error("Please enter a valid positive amount (e.g. 500.00)");
+      return;
+    }
+    if (description.trim().length < 3) {
+      toast.error("A description / reason of at least 3 characters is required");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await postTxn({
+        data: {
+          accountId: currentAccount.id,
+          type,
+          amount: String(numAmount),
+          currency: currentAccount.currency || "USD",
+          description: description.trim(),
+          reference: reference.trim() || undefined,
+          idempotencyKey: crypto.randomUUID(),
+          allowOverdraft: true,
+        },
+      });
+      toast.success(`${type === "CREDIT" ? "Credited" : "Debited"} ${money(numAmount)} on ${currentAccount.name}`);
+      await qc.invalidateQueries({ queryKey: ["admin-customers"] });
+      await qc.invalidateQueries({ queryKey: ["admin-audit"] });
+      await qc.invalidateQueries({ queryKey: ["admin-txns"] });
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const customerName = customer.profile ? `${customer.profile.first_name} ${customer.profile.last_name}`.trim() : customer.email;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TrendingUp className="size-5 text-primary" /> Credit or Debit Customer Account
+          </DialogTitle>
+          <DialogDescription>
+            Post a real-time ledger credit or debit for <strong>{customerName}</strong> ({customer.email}).
+          </DialogDescription>
+        </DialogHeader>
+
+        {customer.accounts.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-3">
+            <Wallet className="size-8 mx-auto text-muted-foreground" />
+            <h4 className="font-semibold text-sm">No Active Accounts</h4>
+            <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+              This customer does not have an active banking account yet. Initialize their Everyday Checking account to start crediting.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleCreateStarterAccount}
+              disabled={creatingAcct}
+              className="text-xs"
+            >
+              {creatingAcct ? "Opening Checking..." : "Open Everyday Checking Account"}
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handlePost} className="space-y-4 py-2">
+            {/* Account Selector */}
+            <div>
+              <Label className="text-xs font-semibold">Select Target Account</Label>
+              <select
+                value={selectedAccountId || currentAccount?.id}
+                onChange={(e) => setSelectedAccountId(e.target.value)}
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+              >
+                {customer.accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} (•••• {a.last_four}) — Available: {money(a.available_balance)} [{a.account_type.toUpperCase()}]
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Type selector */}
+            <div>
+              <Label className="text-xs font-semibold">Transaction Type</Label>
+              <div className="grid grid-cols-2 gap-3 mt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setType("CREDIT");
+                    setDescription("Administrative credit / deposit");
+                  }}
+                  className={`flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-all ${
+                    type === "CREDIT"
+                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-400 shadow-sm"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  <ArrowUpRight className="size-4" /> Credit (+) [Add Funds]
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setType("DEBIT");
+                    setDescription("Administrative debit / fee");
+                  }}
+                  className={`flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-all ${
+                    type === "DEBIT"
+                      ? "border-rose-500 bg-rose-500/15 text-rose-400 shadow-sm"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  <ArrowDownRight className="size-4" /> Debit (−) [Deduct Funds]
+                </button>
+              </div>
+            </div>
+
+            {/* Amount input & Quick buttons */}
+            <div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="quick-amount" className="text-xs font-semibold">
+                  Amount ({currentAccount?.currency || "USD"}) <span className="text-destructive">*</span>
+                </Label>
+                <span className="text-[11px] text-muted-foreground">
+                  Current: <strong>{money(currentAccount?.available_balance || 0)}</strong>
+                </span>
+              </div>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono">$</span>
+                <Input
+                  id="quick-amount"
+                  className="pl-7 font-mono font-bold text-sm"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Quick Amount Chips */}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {[100, 500, 1000, 5000, 10000, 25000].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setAmount(String(preset))}
+                    className="text-[11px] font-mono rounded bg-muted/50 border border-border/80 px-2 py-0.5 hover:bg-muted hover:text-foreground text-muted-foreground"
+                  >
+                    +${preset.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Description & Reference */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="quick-desc" className="text-xs font-semibold">
+                  Description / Memo <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="quick-desc"
+                  className="mt-1 text-xs"
+                  maxLength={300}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g. Wire transfer, payroll"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="quick-ref" className="text-xs font-semibold">
+                  Internal Reference (Optional)
+                </Label>
+                <Input
+                  id="quick-ref"
+                  className="mt-1 text-xs font-mono"
+                  maxLength={100}
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="e.g. TXN-9201"
+                />
+              </div>
+            </div>
+
+            {/* Live Balance Summary */}
+            {validAmount && currentAccount && (
+              <div className="rounded-lg border border-border/80 bg-background/50 p-3 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Current Available Balance:</span>
+                  <span className="font-mono font-medium">{money(before)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{type === "CREDIT" ? "Credit Addition:" : "Debit Deduction:"}</span>
+                  <span className={`font-mono font-bold ${type === "CREDIT" ? "text-emerald-400" : "text-rose-400"}`}>
+                    {type === "CREDIT" ? "+" : "−"}{money(numAmount)}
+                  </span>
+                </div>
+                <div className="border-t border-border/60 pt-1.5 flex justify-between font-bold">
+                  <span>Resulting Available Balance:</span>
+                  <span className={`font-mono ${after < 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                    {money(after)}
+                  </span>
+                </div>
+                {isOverdraft && (
+                  <p className="text-[11px] text-amber-400 pt-1 font-medium">
+                    ⚠️ Notice: This debit will result in a negative balance ({money(after)}). Administrative overdraft is authorized.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={busy || !validAmount}
+                className={type === "CREDIT" ? "bg-emerald-600 hover:bg-emerald-500 text-white font-semibold" : "bg-rose-600 hover:bg-rose-500 text-white font-semibold"}
+              >
+                {busy ? "Processing…" : `Confirm ${type === "CREDIT" ? "Credit (+)" : "Debit (−)"}`}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

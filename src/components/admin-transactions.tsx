@@ -42,7 +42,7 @@ export function TransactionForm({ a }: { a: Acct }) {
   const n = Number(cleanAmount);
   const valid = /^\d{1,10}(\.\d{1,2})?$/.test(cleanAmount) && n > 0;
   const m = useMutation({
-    mutationFn: (t: "CREDIT" | "DEBIT") => post({ data: { accountId: a.id, type: t, amount: cleanAmount, currency, description, reference, idempotencyKey: key } }),
+    mutationFn: (t: "CREDIT" | "DEBIT") => post({ data: { accountId: a.id, type: t, amount: cleanAmount, currency, description, reference, idempotencyKey: key, allowOverdraft: true } }),
     onSuccess: (r) => { toast.success(`Transaction ${r.id.slice(0, 8)} completed`); setType(null); setAmount(""); setDescription(""); setReference(""); setKey(newKey()); refresh(); },
     onError: (e) => { toast.error(errMsg(e)); setKey(newKey()); },
   });
@@ -52,7 +52,7 @@ export function TransactionForm({ a }: { a: Acct }) {
     setType(t);
   };
   const after = type ? a.available_balance + (type === "CREDIT" ? n : -n) : 0;
-  const blocked = type === "DEBIT" && after < 0 && !a.allow_overdraft;
+  const isOverdraft = type === "DEBIT" && after < 0;
 
   return (
     <div className="space-y-3 border-t border-border pt-3">
@@ -64,33 +64,41 @@ export function TransactionForm({ a }: { a: Acct }) {
             <option value={a.currency}>{a.currency}</option>
           </select>
         </div>
-        <div><Label className="text-xs">Description / reason (required)</Label><Input className="mt-1" maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-        <div><Label className="text-xs">Internal reference (optional)</Label><Input className="mt-1" maxLength={100} value={reference} onChange={(e) => setReference(e.target.value)} /></div>
+        <div><Label className="text-xs">Description / reason (required)</Label><Input className="mt-1" maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Wire transfer, payroll, adjustment" /></div>
+        <div><Label className="text-xs">Internal reference (optional)</Label><Input className="mt-1" maxLength={100} value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. TXN-10492" /></div>
       </div>
       <div className="flex gap-2">
-        <Button type="button" size="sm" onClick={() => open("CREDIT")}>Credit</Button>
-        <Button type="button" size="sm" variant="outline" onClick={() => open("DEBIT")}>Debit</Button>
+        <Button type="button" size="sm" onClick={() => open("CREDIT")} className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs">
+          + Credit Account
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => open("DEBIT")} className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10 font-semibold text-xs">
+          − Debit Account
+        </Button>
       </div>
       <AlertDialog open={type !== null} onOpenChange={(o) => { if (!o && !m.isPending) setType(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm {type === "CREDIT" ? "credit" : "debit"}</AlertDialogTitle>
+            <AlertDialogTitle>Confirm {type === "CREDIT" ? "Credit (+)" : "Debit (−)"}</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-1 text-sm">
+              <div className="space-y-2 text-sm">
                 <p>{a.name} •••• {a.last_four}</p>
-                <p>Amount: <strong>{fmt(n || 0, currency)}</strong></p>
-                <p>Current balance: <strong>{fmt(a.available_balance, a.currency)}</strong></p>
-                <p>Resulting balance: <strong className={after < 0 ? "text-destructive" : ""}>{fmt(after, a.currency)}</strong></p>
-                <p>Reason: {description}</p>
+                <p>Transaction Amount: <strong className={type === "CREDIT" ? "text-emerald-400" : "text-rose-400"}>{type === "CREDIT" ? "+" : "−"}{fmt(n || 0, currency)}</strong></p>
+                <p>Current Balance: <strong>{fmt(a.available_balance, a.currency)}</strong></p>
+                <p>Resulting Balance: <strong className={after < 0 ? "text-rose-400" : "text-emerald-400"}>{fmt(after, a.currency)}</strong></p>
+                <p>Reason / Description: <em>{description}</em></p>
                 {reference && <p>Reference: {reference}</p>}
-                {blocked && <p className="font-semibold text-destructive">This would overdraw the account, and overdrafts are not allowed on it.</p>}
+                {isOverdraft && (
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">
+                    <strong>Administrative Overdraft:</strong> This debit exceeds available funds. Resulting balance will be <strong>{fmt(after, a.currency)}</strong>. Administrative override is authorized.
+                  </div>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={m.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={m.isPending || blocked} onClick={(e) => { e.preventDefault(); if (type) m.mutate(type); }}>
-              {m.isPending ? "Processing…" : "Confirm"}
+            <AlertDialogAction disabled={m.isPending} onClick={(e) => { e.preventDefault(); if (type) m.mutate(type); }}>
+              {m.isPending ? "Processing…" : `Confirm ${type === "CREDIT" ? "Credit" : "Debit"}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

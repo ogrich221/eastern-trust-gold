@@ -163,13 +163,20 @@ export const listCustomers = createServerFn({ method: "GET" })
           current_balance: 0,
           credit_limit: null,
           currency: "USD",
-          allow_overdraft: false,
+          allow_overdraft: true,
         };
-        accountList.push({
-          id: "temp-" + u.id,
-          ...initialChecking,
-        } as any);
-        Promise.resolve(admin.from("bank_accounts").insert(initialChecking)).catch(() => {});
+        try {
+          const { data: createdAcct } = await admin
+            .from("bank_accounts")
+            .insert(initialChecking)
+            .select("*")
+            .single();
+          if (createdAcct) {
+            accountList.push(createdAcct);
+          }
+        } catch (e) {
+          console.warn("Could not auto-provision checking account:", e);
+        }
       }
     }
 
@@ -450,10 +457,18 @@ export const postTransaction = createServerFn({ method: "POST" })
     description: z.string().trim().min(3).max(300),
     reference: z.string().trim().max(100).optional().default(""),
     idempotencyKey: z.string().uuid(),
+    allowOverdraft: z.boolean().default(true).optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { admin } = await assertAdmin(context);
     const numAmount = Number(data.amount);
+
+    // If administrative debit, automatically ensure overdraft is enabled on the account so the debit is not blocked
+    if (data.type === "DEBIT" && data.allowOverdraft !== false) {
+      try {
+        await admin.from("bank_accounts").update({ allow_overdraft: true }).eq("id", data.accountId);
+      } catch {}
+    }
 
     // 1. Try calling the PostgreSQL admin_post_transaction RPC first
     const { data: id, error } = await admin.rpc("admin_post_transaction", {
@@ -474,7 +489,9 @@ export const postTransaction = createServerFn({ method: "POST" })
     // If known validation error from SQL, throw specific error
     if (error) {
       const knownKey = Object.keys(TXN_ERRORS).find((k) => error.message.includes(k));
-      if (knownKey) throw new Error(TXN_ERRORS[knownKey]);
+      if (knownKey && !(knownKey === "INSUFFICIENT_FUNDS" && data.allowOverdraft !== false)) {
+        throw new Error(TXN_ERRORS[knownKey]);
+      }
     }
 
     // 2. Direct ledger fallback if RPC fails or is missing
@@ -502,7 +519,7 @@ export const postTransaction = createServerFn({ method: "POST" })
     const sign = data.type === "CREDIT" ? 1 : -1;
     const before = Number(acct.available_balance || 0);
     const after = Math.round((before + sign * numAmount) * 100) / 100;
-    if (after < 0 && !acct.allow_overdraft) {
+    if (after < 0 && !acct.allow_overdraft && data.allowOverdraft === false) {
       throw new Error(TXN_ERRORS["INSUFFICIENT_FUNDS"]);
     }
 
