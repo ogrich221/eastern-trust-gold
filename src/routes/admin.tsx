@@ -1894,7 +1894,7 @@ function QuickCreditDebitModal({
 
   useEffect(() => {
     if (customer?.accounts && customer.accounts.length > 0) {
-      setSelectedAccountId(customer.accounts[0].id);
+      setSelectedAccountId(customer.accounts[0]!.id);
       setAmount("");
       setDescription(type === "CREDIT" ? "Administrative credit / deposit" : "Administrative debit / fee");
       setReference("");
