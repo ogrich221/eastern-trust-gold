@@ -15,6 +15,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CardsRouteImport } from './routes/cards'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as GrantsRouteImport } from './routes/grants'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as IrsRouteImport } from './routes/irs'
@@ -22,6 +23,7 @@ import { Route as LoansRouteImport } from './routes/loans'
 import { Route as PersonalRouteImport } from './routes/personal'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as RatesRouteImport } from './routes/rates'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -53,6 +55,11 @@ const BusinessRoute = BusinessRouteImport.update({
 const CardsRoute = CardsRouteImport.update({
   id: '/cards',
   path: '/cards',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GrantsRoute = GrantsRouteImport.update({
@@ -90,6 +97,11 @@ const RatesRoute = RatesRouteImport.update({
   path: '/rates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -112,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/business': typeof BusinessRoute
   '/cards': typeof CardsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/grants': typeof GrantsRoute
   '/help': typeof HelpRoute
   '/irs': typeof IrsRoute
@@ -119,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/personal': typeof PersonalRoute
   '/products': typeof ProductsRoute
   '/rates': typeof RatesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -129,6 +143,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/business': typeof BusinessRoute
   '/cards': typeof CardsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/grants': typeof GrantsRoute
   '/help': typeof HelpRoute
   '/irs': typeof IrsRoute
@@ -136,6 +151,7 @@ export interface FileRoutesByTo {
   '/personal': typeof PersonalRoute
   '/products': typeof ProductsRoute
   '/rates': typeof RatesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -148,6 +164,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/business': typeof BusinessRoute
   '/cards': typeof CardsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/grants': typeof GrantsRoute
   '/help': typeof HelpRoute
   '/irs': typeof IrsRoute
@@ -155,6 +172,7 @@ export interface FileRoutesById {
   '/personal': typeof PersonalRoute
   '/products': typeof ProductsRoute
   '/rates': typeof RatesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -167,6 +185,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/business'
     | '/cards'
+    | '/forgot-password'
     | '/grants'
     | '/help'
     | '/irs'
@@ -174,6 +193,7 @@ export interface FileRouteTypes {
     | '/personal'
     | '/products'
     | '/rates'
+    | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/dashboard'
@@ -184,6 +204,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/business'
     | '/cards'
+    | '/forgot-password'
     | '/grants'
     | '/help'
     | '/irs'
@@ -191,6 +212,7 @@ export interface FileRouteTypes {
     | '/personal'
     | '/products'
     | '/rates'
+    | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/dashboard'
@@ -202,6 +224,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/business'
     | '/cards'
+    | '/forgot-password'
     | '/grants'
     | '/help'
     | '/irs'
@@ -209,6 +232,7 @@ export interface FileRouteTypes {
     | '/personal'
     | '/products'
     | '/rates'
+    | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/_authenticated/dashboard'
@@ -221,6 +245,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   BusinessRoute: typeof BusinessRoute
   CardsRoute: typeof CardsRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   GrantsRoute: typeof GrantsRoute
   HelpRoute: typeof HelpRoute
   IrsRoute: typeof IrsRoute
@@ -228,6 +253,7 @@ export interface RootRouteChildren {
   PersonalRoute: typeof PersonalRoute
   ProductsRoute: typeof ProductsRoute
   RatesRoute: typeof RatesRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
@@ -274,6 +300,13 @@ declare module '@tanstack/react-router' {
       path: '/cards'
       fullPath: '/cards'
       preLoaderRoute: typeof CardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/grants': {
@@ -325,6 +358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -367,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   BusinessRoute: BusinessRoute,
   CardsRoute: CardsRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   GrantsRoute: GrantsRoute,
   HelpRoute: HelpRoute,
   IrsRoute: IrsRoute,
@@ -374,6 +415,7 @@ const rootRouteChildren: RootRouteChildren = {
   PersonalRoute: PersonalRoute,
   ProductsRoute: ProductsRoute,
   RatesRoute: RatesRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
