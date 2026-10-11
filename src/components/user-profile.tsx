@@ -105,6 +105,7 @@ export function UserProfile({
   accounts,
   onRefresh,
   isAdminView = false,
+  onSaveContact,
 }: UserProfileProps) {
   const [profile, setProfile] = useState<ProfileData>(initialProfile ?? {});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
