@@ -55,7 +55,8 @@ function Dashboard() {
               (typeof keys)[number],
               string
             >;
-            await supabase.from("profiles").insert({ id: user.id, ...row });
+            const pinHash = p["transfer_pin_hash"];
+            await supabase.from("profiles").insert({ id: user.id, ...row, ...(typeof pinHash === "string" ? { transfer_pin_hash: pinHash } : {}) });
             prof = {
               first_name: row.first_name,
               last_name: row.last_name,

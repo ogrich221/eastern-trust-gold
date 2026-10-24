@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -161,6 +161,72 @@ export type Database = {
         }
         Relationships: []
       }
+      international_wires: {
+        Row: {
+          account_id: string
+          account_number: string
+          amount: number
+          country: string
+          created_at: string
+          currency: string
+          id: string
+          memo: string | null
+          recipient_bank: string
+          recipient_name: string
+          status: string
+          swift_bic: string
+          txn_id: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          account_number: string
+          amount: number
+          country: string
+          created_at?: string
+          currency: string
+          id?: string
+          memo?: string | null
+          recipient_bank: string
+          recipient_name: string
+          status?: string
+          swift_bic: string
+          txn_id: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          account_number?: string
+          amount?: number
+          country?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          memo?: string | null
+          recipient_bank?: string
+          recipient_name?: string
+          status?: string
+          swift_bic?: string
+          txn_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "international_wires_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "international_wires_txn_id_fkey"
+            columns: ["txn_id"]
+            isOneToOne: false
+            referencedRelation: "account_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string
@@ -176,6 +242,7 @@ export type Database = {
           security_answer_two_hash: string
           security_question_one: string
           security_question_two: string
+          transfer_pin_hash: string | null
           updated_at: string
         }
         Insert: {
@@ -192,6 +259,7 @@ export type Database = {
           security_answer_two_hash: string
           security_question_one: string
           security_question_two: string
+          transfer_pin_hash?: string | null
           updated_at?: string
         }
         Update: {
@@ -208,6 +276,7 @@ export type Database = {
           security_answer_two_hash?: string
           security_question_one?: string
           security_question_two?: string
+          transfer_pin_hash?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -260,6 +329,7 @@ export type Database = {
           _key: string
           _memo: string
           _payee: string
+          _pin_hash?: string
         }
         Returns: string
       }
@@ -269,8 +339,25 @@ export type Database = {
           _from: string
           _key: string
           _memo: string
+          _pin_hash?: string
           _to_account: string
           _to_email: string
+        }
+        Returns: string
+      }
+      customer_wire: {
+        Args: {
+          _account_number: string
+          _amount: number
+          _country: string
+          _currency: string
+          _from: string
+          _key: string
+          _memo: string
+          _pin_hash?: string
+          _recipient_bank: string
+          _recipient_name: string
+          _swift: string
         }
         Returns: string
       }
@@ -281,6 +368,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      set_transfer_pin: { Args: { _pin_hash: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"
