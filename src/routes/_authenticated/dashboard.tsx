@@ -49,13 +49,10 @@ function Dashboard() {
             "security_answer_one_hash",
             "security_question_two",
             "security_answer_two_hash",
-            "transfer_pin_hash",
           ] as const;
           if (keys.every((k) => typeof p[k] === "string")) {
-            const row = Object.fromEntries(keys.map((k) => [k, String(p[k])])) as Record<
-              (typeof keys)[number],
-              string
-            >;
+            const row = Object.fromEntries(keys.map((k) => [k, String(p[k])])) as Record<string, string>;
+            if (typeof p["transfer_pin_hash"] === "string") row["transfer_pin_hash"] = String(p["transfer_pin_hash"]);
             await supabase.from("profiles").insert({ id: user.id, ...row });
             prof = {
               first_name: row.first_name,
