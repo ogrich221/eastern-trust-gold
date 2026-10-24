@@ -773,11 +773,17 @@ const profileFields = {
   answer_one: z.string().trim().min(2).max(100),
   security_question_two: z.string().trim().min(3).max(200),
   answer_two: z.string().trim().min(2).max(100),
+  transfer_pin: z.string().trim().regex(/^\d{4,6}$/, "PIN must be 4–6 digits").optional(),
 };
 
 async function profileRow(d: z.infer<z.ZodObject<typeof profileFields>>) {
-  const { answer_one, answer_two, ...rest } = d;
-  return { ...rest, security_answer_one_hash: await hashAnswer(answer_one), security_answer_two_hash: await hashAnswer(answer_two) };
+  const { answer_one, answer_two, transfer_pin, ...rest } = d;
+  return {
+    ...rest,
+    security_answer_one_hash: await hashAnswer(answer_one),
+    security_answer_two_hash: await hashAnswer(answer_two),
+    ...(transfer_pin ? { transfer_pin_hash: await hashAnswer(transfer_pin) } : {}),
+  };
 }
 
 export const createCustomer = createServerFn({ method: "POST" })
