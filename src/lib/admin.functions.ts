@@ -1241,12 +1241,13 @@ export const setWireStatus = createServerFn({ method: "POST" })
     if (wire.status !== "PENDING") throw new Error("Only pending wires can be updated.");
 
     if (data.action === "cancel") {
-      // Refund the customer by reversing the original debit
+      // Refund the customer by reversing the original debit, in the account's own currency
+      const { data: acct } = await admin.from("bank_accounts").select("currency").eq("id", wire.account_id).single();
       const { error } = await admin.rpc("admin_post_transaction", {
         _account_id: wire.account_id,
         _type: "CREDIT",
         _amount: Number(wire.amount),
-        _currency: wire.currency === "USD" ? wire.currency : wire.currency,
+        _currency: acct?.currency ?? "USD",
         _description: `Wire cancellation refund: ${wire.recipient_name} (${wire.country})`,
         _reference: wire.txn_id,
         _admin: context.adminName,
