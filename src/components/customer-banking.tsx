@@ -88,7 +88,7 @@ export function CustomerBanking({ accounts, onChange, hidden }: { accounts: Bank
       <div className="mt-12 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-2xl">Move money</h2>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => openMode("transfer")}><ArrowLeftRight /> Transfer</Button>
+          <Button onClick={() => openMode("transfer")}><ArrowLeftRight /> Domestic transfer</Button>
           <Button variant="outline" onClick={() => openMode("pay")}><Receipt /> Pay a bill</Button>
           <Button variant="outline" onClick={() => openMode("wire")}><Globe /> International wire</Button>
         </div>
@@ -220,8 +220,8 @@ function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "
     <Dialog open={mode !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{mode === "pay" ? "Pay a bill" : "Transfer money"}</DialogTitle>
-          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Move money between your accounts or to another Eastern Trust customer."}</DialogDescription>
+          <DialogTitle>{mode === "pay" ? "Pay a bill" : "Domestic transfer"}</DialogTitle>
+          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Send money within the US — between your own accounts or to another Eastern Trust customer by email."}</DialogDescription>
         </DialogHeader>
         {step === "form" ? (
           <div className="grid gap-4">

@@ -355,11 +355,11 @@ export function UserProfile({
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-5">
             <div className="relative group">
-              <Avatar className="size-20 border-2 border-primary/40 shadow-inner md:size-24">
+              <Avatar className="size-14 border-2 border-primary/40 shadow-inner md:size-16">
                 {avatarUrl ? (
                   <AvatarImage src={avatarUrl} alt={fullName} className="object-cover" />
                 ) : null}
-                <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary md:text-2xl">
+                <AvatarFallback className="bg-primary/10 text-base font-semibold text-primary md:text-lg">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -368,7 +368,7 @@ export function UserProfile({
                 aria-label="Change profile photo"
                 className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
               >
-                <Camera className="size-6" />
+                <Camera className="size-4" />
               </button>
             </div>
 
@@ -449,45 +449,45 @@ export function UserProfile({
             )}
           </div>
         </div>
+      </section>
 
-        {/* Financial Snapshot Summary Ribbon */}
-        <div className="mt-8 grid grid-cols-1 gap-4 border-t border-border pt-6 sm:grid-cols-4">
-          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Checking Balance
-            </p>
-            <p className="mt-2 text-2xl font-bold text-primary font-display">
-              {hideBalances ? "••••••••" : formatCurrency(totalAssets)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">Everyday Checking liquid balance</p>
-          </div>
-          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Liquid Available
-            </p>
-            <p className="mt-2 text-2xl font-bold text-foreground font-display">
-              {hideBalances ? "••••••••" : formatCurrency(availableCash)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">Immediate spend & transfer funds</p>
-          </div>
-          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Bitcoin Portfolio
-            </p>
-            <p className="mt-2 text-2xl font-bold text-[#F7931A] font-display">
-              {hideBalances ? "••••••••" : formatCurrency(btcHoldings * btcPrice)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">{btcHoldings.toFixed(4)} BTC in Custody</p>
-          </div>
-          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Card Balance / Credit
-            </p>
-            <p className="mt-2 text-2xl font-bold text-foreground font-display">
-              {hideBalances ? "••••••••" : formatCurrency(totalCardOwed)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">Gold Rewards statement owed</p>
-          </div>
+      {/* Financial Snapshot Summary Ribbon */}
+      <section aria-label="Balance summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Total Balance
+          </p>
+          <p className="mt-2 text-2xl font-bold text-primary font-display">
+            {hideBalances ? "••••••••" : formatCurrency(totalAssets)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Across all your accounts</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Available to Spend
+          </p>
+          <p className="mt-2 text-2xl font-bold text-foreground font-display">
+            {hideBalances ? "••••••••" : formatCurrency(availableCash)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Immediate spend & transfer funds</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Card Balance / Credit
+          </p>
+          <p className="mt-2 text-2xl font-bold text-foreground font-display">
+            {hideBalances ? "••••••••" : formatCurrency(totalCardOwed)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Gold Rewards statement owed</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Bitcoin Portfolio
+          </p>
+          <p className="mt-2 text-2xl font-bold text-[#F7931A] font-display">
+            {hideBalances ? "••••••••" : formatCurrency(btcHoldings * btcPrice)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{btcHoldings.toFixed(4)} BTC in Custody</p>
         </div>
       </section>
 
