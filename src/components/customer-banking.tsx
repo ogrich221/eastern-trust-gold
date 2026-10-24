@@ -220,8 +220,8 @@ function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "
     <Dialog open={mode !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{mode === "pay" ? "Pay a bill" : "Transfer money"}</DialogTitle>
-          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Move money between your accounts or to another Eastern Trust customer."}</DialogDescription>
+          <DialogTitle>{mode === "pay" ? "Pay a bill" : "Domestic transfer"}</DialogTitle>
+          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Send money within the US — between your own accounts or to another Eastern Trust customer by email."}</DialogDescription>
         </DialogHeader>
         {step === "form" ? (
           <div className="grid gap-4">
