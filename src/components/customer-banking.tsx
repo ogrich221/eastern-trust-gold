@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeftRight, Receipt } from "lucide-react";
+import { ArrowLeftRight, Globe, KeyRound, Receipt } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,15 +17,46 @@ const errors: Record<string, string> = {
   SOURCE_NOT_ALLOWED: "You can't send money from that account.",
   INVALID_PAYEE: "Enter who you're paying.",
   CURRENCY_MISMATCH: "Those accounts use different currencies.",
+  PIN_INVALID: "That transfer PIN isn't correct.",
+  INVALID_PIN: "Choose a PIN of 4 to 6 digits.",
+  INVALID_RECIPIENT: "Enter the recipient's full name.",
+  INVALID_BANK: "Enter the recipient's bank name.",
+  INVALID_SWIFT: "Enter a valid SWIFT/BIC code (8–11 characters).",
+  INVALID_ACCOUNT_NUMBER: "Enter a valid account number or IBAN.",
+  INVALID_CURRENCY: "Choose a currency.",
+  INVALID_COUNTRY: "Choose a destination country.",
+  COUNTRY_NOT_SUPPORTED: "We don't currently support wire transfers to that country.",
 };
 const friendly = (m: string) => Object.entries(errors).find(([k]) => m.includes(k))?.[1] ?? "Something went wrong. Please try again.";
 const fmt = (n: number, c = "USD") => n.toLocaleString("en-US", { style: "currency", currency: c });
 const selectCls = "h-10 w-full border border-input bg-background px-3 text-sm";
 
+async function hashPin(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value.trim().toLowerCase()));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+const WIRE_COUNTRIES = [
+  "United States", "Canada", "Mexico", "Brazil", "Argentina", "Chile", "Colombia", "Peru",
+  "United Kingdom", "Ireland", "France", "Germany", "Spain", "Portugal", "Italy", "Netherlands",
+  "Belgium", "Switzerland", "Austria", "Sweden", "Norway", "Denmark", "Finland", "Poland",
+  "Czech Republic", "Greece", "Turkey", "United Arab Emirates", "Saudi Arabia", "Qatar", "Israel",
+  "India", "China", "Japan", "South Korea", "Singapore", "Hong Kong", "Taiwan", "Thailand",
+  "Vietnam", "Malaysia", "Indonesia", "Philippines", "Australia", "New Zealand",
+];
+const WIRE_CURRENCIES = [
+  "USD", "EUR", "GBP", "CHF", "CAD", "AUD", "NZD", "JPY", "CNY", "HKD", "SGD", "AED", "SAR",
+  "QAR", "ILS", "INR", "BRL", "MXN", "ARS", "CLP", "COP", "PEN", "SEK", "NOK", "DKK", "PLN",
+  "CZK", "TRY", "THB", "MYR", "IDR", "PHP", "KRW", "TWD",
+];
+
 export function CustomerBanking({ accounts, onChange, hidden }: { accounts: BankAccount[]; onChange: () => void; hidden: boolean }) {
   const [txns, setTxns] = useState<Txn[] | null>(null);
-  const [mode, setMode] = useState<"transfer" | "pay" | null>(null);
+  const [mode, setMode] = useState<"transfer" | "pay" | "wire" | null>(null);
   const [filter, setFilter] = useState("all");
+  const [hasPin, setHasPin] = useState<boolean | null>(null);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pendingMode, setPendingMode] = useState<"transfer" | "pay" | "wire" | null>(null);
 
   const loadTxns = useCallback(async () => {
     let q = supabase.from("account_transactions").select("id,account_id,txn_type,amount,currency,description,status,created_at,balance_after").order("created_at", { ascending: false }).limit(100);
@@ -35,6 +66,20 @@ export function CustomerBanking({ accounts, onChange, hidden }: { accounts: Bank
   }, [filter]);
   useEffect(() => { loadTxns(); }, [loadTxns]);
 
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      const { data } = await supabase.from("profiles").select("transfer_pin_hash").eq("id", u.user.id).maybeSingle();
+      setHasPin(Boolean(data?.transfer_pin_hash));
+    })();
+  }, []);
+
+  const openMode = (m: "transfer" | "pay" | "wire") => {
+    if (hasPin === false) { setPendingMode(m); setPinOpen(true); return; }
+    setMode(m);
+  };
+
   const done = () => { setMode(null); onChange(); loadTxns(); };
   const name = (id: string) => { const a = accounts.find((x) => x.id === id); return a ? `${a.name} •••• ${a.last_four}` : ""; };
 
@@ -42,9 +87,10 @@ export function CustomerBanking({ accounts, onChange, hidden }: { accounts: Bank
     <>
       <div className="mt-12 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-2xl">Move money</h2>
-        <div className="flex gap-3">
-          <Button onClick={() => setMode("transfer")}><ArrowLeftRight /> Transfer</Button>
-          <Button variant="outline" onClick={() => setMode("pay")}><Receipt /> Pay a bill</Button>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => openMode("transfer")}><ArrowLeftRight /> Transfer</Button>
+          <Button variant="outline" onClick={() => openMode("pay")}><Receipt /> Pay a bill</Button>
+          <Button variant="outline" onClick={() => openMode("wire")}><Globe /> International wire</Button>
         </div>
       </div>
 
@@ -74,8 +120,56 @@ export function CustomerBanking({ accounts, onChange, hidden }: { accounts: Bank
         </ul>
       </div>
 
-      <MoneyDialog mode={mode} accounts={accounts} onClose={() => setMode(null)} onDone={done} />
+      <SetPinDialog open={pinOpen} onClose={() => { setPinOpen(false); setPendingMode(null); }} onDone={() => { setPinOpen(false); setHasPin(true); if (pendingMode) setMode(pendingMode); setPendingMode(null); }} />
+      <MoneyDialog mode={mode === "wire" ? null : mode} accounts={accounts} onClose={() => setMode(null)} onDone={done} />
+      <WireDialog open={mode === "wire"} accounts={accounts} onClose={() => setMode(null)} onDone={done} />
     </>
+  );
+}
+
+function SetPinDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+  const [pin, setPin] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { if (open) { setPin(""); setConfirm(""); setErr(""); } }, [open]);
+
+  const submit = async () => {
+    setErr("");
+    if (!/^\d{4,6}$/.test(pin)) return setErr(errors["INVALID_PIN"]!);
+    if (pin !== confirm) return setErr("PINs do not match.");
+    setBusy(true);
+    const { error } = await supabase.rpc("set_transfer_pin", { _pin_hash: await hashPin(pin) });
+    setBusy(false);
+    if (error) return setErr(friendly(error.message));
+    onDone();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><KeyRound className="size-5 text-primary" /> Create your transfer PIN</DialogTitle>
+          <DialogDescription>Before you can move money, set a 4–6 digit PIN. You'll enter it to approve every transfer, payment or wire.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-2"><Label htmlFor="newpin">Transfer PIN</Label><Input id="newpin" type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} /></div>
+          <div className="grid gap-2"><Label htmlFor="newpin2">Confirm PIN</Label><Input id="newpin2" type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ""))} /></div>
+          {err && <p className="text-sm text-destructive">{err}</p>}
+        </div>
+        <DialogFooter><Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Save PIN"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PinField({ pin, setPin }: { pin: string; setPin: (v: string) => void }) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor="txnpin">Transfer PIN</Label>
+      <Input id="txnpin" type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} placeholder="4–6 digits" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
+    </div>
   );
 }
 
@@ -88,13 +182,14 @@ function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "
   const [payee, setPayee] = useState("");
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
+  const [pin, setPin] = useState("");
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [key, setKey] = useState("");
 
   useEffect(() => {
-    if (mode) { setFrom(sources[0]?.id ?? ""); setTo(""); setEmail(""); setPayee(""); setAmount(""); setMemo(""); setStep("form"); setErr(""); setKey(crypto.randomUUID()); }
+    if (mode) { setFrom(sources[0]?.id ?? ""); setTo(""); setEmail(""); setPayee(""); setAmount(""); setMemo(""); setPin(""); setStep("form"); setErr(""); setKey(crypto.randomUUID()); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
@@ -111,11 +206,12 @@ function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "
   };
   const submit = async () => {
     setBusy(true); setErr("");
+    const pinHash = await hashPin(pin);
     const { error } = mode === "transfer"
-      ? await supabase.rpc("customer_transfer", { _from: from, _to_account: toKind === "own" ? to : (null as unknown as string), _to_email: toKind === "customer" ? email : (null as unknown as string), _amount: amt, _memo: memo, _key: key })
-      : await supabase.rpc("customer_payment", { _from: from, _payee: payee, _amount: amt, _memo: memo, _key: key });
+      ? await supabase.rpc("customer_transfer", { _from: from, _to_account: toKind === "own" ? to : (null as unknown as string), _to_email: toKind === "customer" ? email : (null as unknown as string), _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash })
+      : await supabase.rpc("customer_payment", { _from: from, _payee: payee, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash });
     setBusy(false);
-    if (error) { setErr(friendly(error.message)); setStep("form"); return; }
+    if (error) { setErr(friendly(error.message)); if (error.message.includes("PIN_INVALID")) return; setStep("form"); return; }
     onDone();
   };
   const destination = mode === "pay" ? payee : toKind === "own" ? accounts.find((a) => a.id === to)?.name ?? "" : email;
@@ -157,16 +253,116 @@ function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "
             {err && <p className="text-sm text-destructive">{err}</p>}
           </div>
         ) : (
-          <div className="grid gap-2 text-sm">
+          <div className="grid gap-4 text-sm">
             <p>Send <strong>{fmt(amt)}</strong> from <strong>{src?.name}</strong> to <strong>{destination}</strong>?</p>
             {memo && <p className="text-muted-foreground">Note: {memo}</p>}
+            <PinField pin={pin} setPin={setPin} />
             {err && <p className="text-destructive">{err}</p>}
           </div>
         )}
         <DialogFooter>
           {step === "form"
             ? <Button onClick={review}>Review</Button>
-            : <><Button variant="outline" onClick={() => setStep("form")} disabled={busy}>Back</Button><Button onClick={submit} disabled={busy}>{busy ? "Sending…" : "Confirm"}</Button></>}
+            : <><Button variant="outline" onClick={() => setStep("form")} disabled={busy}>Back</Button><Button onClick={submit} disabled={busy || pin.length < 4}>{busy ? "Sending…" : "Confirm"}</Button></>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function WireDialog({ open, accounts, onClose, onDone }: { open: boolean; accounts: BankAccount[]; onClose: () => void; onDone: () => void }) {
+  const sources = accounts.filter((a) => ["checking", "savings"].includes(a.account_type));
+  const [from, setFrom] = useState("");
+  const [recipient, setRecipient] = useState("");
+  const [bank, setBank] = useState("");
+  const [swift, setSwift] = useState("");
+  const [acctNo, setAcctNo] = useState("");
+  const [country, setCountry] = useState("");
+  const [currency, setCurrency] = useState("EUR");
+  const [amount, setAmount] = useState("");
+  const [memo, setMemo] = useState("");
+  const [pin, setPin] = useState("");
+  const [step, setStep] = useState<"form" | "confirm">("form");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [key, setKey] = useState("");
+
+  useEffect(() => {
+    if (open) { setFrom(sources[0]?.id ?? ""); setRecipient(""); setBank(""); setSwift(""); setAcctNo(""); setCountry(""); setCurrency("EUR"); setAmount(""); setMemo(""); setPin(""); setStep("form"); setErr(""); setKey(crypto.randomUUID()); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const amt = Number(amount.replace(/,/g, "").trim());
+  const src = accounts.find((a) => a.id === from);
+  const review = () => {
+    setErr("");
+    if (!src) return setErr("Choose an account.");
+    if (!(amt > 0) || Math.round(amt * 100) !== amt * 100) return setErr(errors["INVALID_AMOUNT"]!);
+    if (recipient.trim().length < 2) return setErr(errors["INVALID_RECIPIENT"]!);
+    if (bank.trim().length < 2) return setErr(errors["INVALID_BANK"]!);
+    if (!/^[A-Za-z0-9]{8,11}$/.test(swift.trim())) return setErr(errors["INVALID_SWIFT"]!);
+    if (acctNo.trim().length < 4 || acctNo.trim().length > 34) return setErr(errors["INVALID_ACCOUNT_NUMBER"]!);
+    if (!country) return setErr(errors["INVALID_COUNTRY"]!);
+    setStep("confirm");
+  };
+  const submit = async () => {
+    setBusy(true); setErr("");
+    const { error } = await supabase.rpc("customer_wire", {
+      _from: from, _amount: amt, _currency: currency, _recipient_name: recipient, _recipient_bank: bank,
+      _swift: swift, _account_number: acctNo, _country: country, _memo: memo, _key: key, _pin_hash: await hashPin(pin),
+    });
+    setBusy(false);
+    if (error) { setErr(friendly(error.message)); if (error.message.includes("PIN_INVALID")) return; setStep("form"); return; }
+    onDone();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>International wire transfer</DialogTitle>
+          <DialogDescription>Send money to a bank account outside the United States. Wires are reviewed by our team before release. African destinations are not currently supported.</DialogDescription>
+        </DialogHeader>
+        {step === "form" ? (
+          <div className="grid gap-4">
+            <div className="grid gap-2"><Label htmlFor="wfrom">From</Label>
+              <select id="wfrom" className={selectCls} value={from} onChange={(e) => setFrom(e.target.value)}>
+                {sources.map((a) => <option key={a.id} value={a.id}>{a.name} •••• {a.last_four} ({fmt(a.available_balance)} available)</option>)}
+              </select></div>
+            <div className="grid gap-2"><Label htmlFor="wname">Recipient's full name</Label><Input id="wname" maxLength={120} value={recipient} onChange={(e) => setRecipient(e.target.value)} /></div>
+            <div className="grid gap-2"><Label htmlFor="wbank">Recipient's bank</Label><Input id="wbank" maxLength={120} value={bank} onChange={(e) => setBank(e.target.value)} /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2"><Label htmlFor="wswift">SWIFT / BIC</Label><Input id="wswift" maxLength={11} placeholder="e.g. DEUTDEFF" value={swift} onChange={(e) => setSwift(e.target.value.toUpperCase())} /></div>
+              <div className="grid gap-2"><Label htmlFor="wacct">Account number / IBAN</Label><Input id="wacct" maxLength={34} value={acctNo} onChange={(e) => setAcctNo(e.target.value)} /></div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2"><Label htmlFor="wcountry">Destination country</Label>
+                <select id="wcountry" className={selectCls} value={country} onChange={(e) => setCountry(e.target.value)}>
+                  <option value="">Choose country…</option>
+                  {WIRE_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select></div>
+              <div className="grid gap-2"><Label htmlFor="wcur">Receiving currency</Label>
+                <select id="wcur" className={selectCls} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                  {WIRE_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select></div>
+            </div>
+            <div className="grid gap-2"><Label htmlFor="wamt">Amount (USD)</Label><Input id="wamt" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} /><p className="text-xs text-muted-foreground">Charged in your account's currency; the recipient's bank converts to {currency}.</p></div>
+            <div className="grid gap-2"><Label htmlFor="wmemo">Note (optional)</Label><Input id="wmemo" maxLength={140} value={memo} onChange={(e) => setMemo(e.target.value)} /></div>
+            {err && <p className="text-sm text-destructive">{err}</p>}
+          </div>
+        ) : (
+          <div className="grid gap-4 text-sm">
+            <p>Wire <strong>{fmt(amt)}</strong> from <strong>{src?.name}</strong> to <strong>{recipient}</strong> at <strong>{bank}</strong> ({country})?</p>
+            <p className="text-muted-foreground">SWIFT {swift.trim().toUpperCase()} · Account {acctNo.trim()} · Receives in {currency}</p>
+            {memo && <p className="text-muted-foreground">Note: {memo}</p>}
+            <PinField pin={pin} setPin={setPin} />
+            {err && <p className="text-destructive">{err}</p>}
+          </div>
+        )}
+        <DialogFooter>
+          {step === "form"
+            ? <Button onClick={review}>Review</Button>
+            : <><Button variant="outline" onClick={() => setStep("form")} disabled={busy}>Back</Button><Button onClick={submit} disabled={busy || pin.length < 4}>{busy ? "Sending…" : "Confirm wire"}</Button></>}
         </DialogFooter>
       </DialogContent>
     </Dialog>
