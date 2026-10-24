@@ -94,7 +94,7 @@ import {
   updateCustomerContactInfo,
   postTransaction,
 } from "@/lib/admin.functions";
-import { TransactionForm, TransactionLedger } from "@/components/admin-transactions";
+import { TransactionForm, TransactionLedger, WireReview } from "@/components/admin-transactions";
 import { UserProfile } from "@/components/user-profile";
 import { AdminReports } from "@/components/admin-reports";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -600,7 +600,8 @@ function AdminPortal({ adminName }: { adminName: string }) {
           </TabsContent>
 
           {/* TAB 2: TRANSACTION MONITORING */}
-          <TabsContent value="transactions" className="mt-6">
+          <TabsContent value="transactions" className="mt-6 space-y-6">
+            <WireReview emailOf={(id) => emailOf(id)} />
             <TransactionLedger emailOf={(id) => emailOf(id)} />
           </TabsContent>
 
