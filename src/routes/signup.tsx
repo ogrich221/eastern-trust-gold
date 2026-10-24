@@ -19,7 +19,7 @@ function SignupPage(){
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const registerFn = useServerFn(registerCustomerPublic);
-  const [form,setForm]=useState({firstName:"",lastName:"",email:"",phone:"",address:"",city:"",postalCode:"",question1:firstQuestion,answer1:"",question2:secondQuestion,answer2:"",password:"",confirm:""}); 
+  const [form,setForm]=useState({firstName:"",lastName:"",email:"",phone:"",address:"",city:"",postalCode:"",question1:firstQuestion,answer1:"",question2:secondQuestion,answer2:"",pin:"",confirmPin:"",password:"",confirm:""}); 
   const update=(key:string,value:string)=>setForm(v=>({...v,[key]:value}));
 
   const submit=async(e:React.FormEvent)=>{
@@ -27,6 +27,8 @@ function SignupPage(){
     setError("");
     if(form.password!==form.confirm){setError("Passwords do not match.");return;}
     if(form.question1===form.question2){setError("Choose two different security questions.");return;}
+    if(!/^\d{4,6}$/.test(form.pin)){setError("Choose a transfer PIN of 4 to 6 digits.");return;}
+    if(form.pin!==form.confirmPin){setError("Transfer PINs do not match.");return;}
     setBusy(true);
 
     try {
