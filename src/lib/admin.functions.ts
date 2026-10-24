@@ -1209,4 +1209,73 @@ export const checkServiceKeyStatus = createServerFn({ method: "GET" })
     return { configured: hasServiceRole };
   });
 
+export const listWires = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async ({ context }) => {
+    const { admin } = await assertAdmin(context);
+    const { data, error } = await admin
+      .from("international_wires")
+      .select("id,txn_id,user_id,account_id,recipient_name,recipient_bank,swift_bic,account_number,country,currency,amount,memo,status,created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const setWireStatus = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({
+    wireId: z.string().uuid(),
+    action: z.enum(["complete", "cancel"]),
+    reason: z.string().trim().min(3).max(300),
+    idempotencyKey: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { admin, log } = await assertAdmin(context);
+    const { data: wire, error: e1 } = await admin
+      .from("international_wires")
+      .select("id,txn_id,user_id,account_id,amount,currency,status,recipient_name,country")
+      .eq("id", data.wireId)
+      .single();
+    if (e1 || !wire) throw new Error("Wire transfer not found.");
+    if (wire.status !== "PENDING") throw new Error("Only pending wires can be updated.");
+
+    if (data.action === "cancel") {
+      // Refund the customer by reversing the original debit
+      const { error } = await admin.rpc("admin_post_transaction", {
+        _account_id: wire.account_id,
+        _type: "CREDIT",
+        _amount: Number(wire.amount),
+        _currency: wire.currency === "USD" ? wire.currency : wire.currency,
+        _description: `Wire cancellation refund: ${wire.recipient_name} (${wire.country})`,
+        _reference: wire.txn_id,
+        _admin: context.adminName,
+        _idempotency_key: data.idempotencyKey,
+        _reverses: wire.txn_id,
+        _reversal_reason: data.reason,
+      });
+      if (error) {
+        const knownKey = Object.keys(TXN_ERRORS).find((k) => error.message.includes(k));
+        throw new Error(knownKey ? TXN_ERRORS[knownKey] : error.message);
+      }
+    }
+
+    const { error: e2 } = await admin
+      .from("international_wires")
+      .update({ status: data.action === "complete" ? "COMPLETED" : "CANCELLED" })
+      .eq("id", wire.id)
+      .eq("status", "PENDING");
+    if (e2) throw new Error(e2.message);
+
+    await log(data.action === "complete" ? "wire_completed" : "wire_cancelled", wire.user_id, {
+      wire_id: wire.id,
+      amount: wire.amount,
+      currency: wire.currency,
+      recipient: wire.recipient_name,
+      country: wire.country,
+      reason: data.reason,
+    });
+    return { ok: true };
+  });
+
 
