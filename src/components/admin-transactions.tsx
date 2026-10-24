@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { postTransaction, reverseTransaction, listTransactions } from "@/lib/admin.functions";
+import { postTransaction, reverseTransaction, listTransactions, listWires, setWireStatus } from "@/lib/admin.functions";
 
 const fmt = (n: number, c = "USD") => n.toLocaleString("en-US", { style: "currency", currency: c });
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
@@ -177,6 +177,83 @@ export function TransactionLedger({ userId, emailOf }: { userId?: string; emailO
           <AlertDialogFooter>
             <AlertDialogCancel disabled={rm.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction disabled={rm.isPending || (rev?.reason.trim().length ?? 0) < 3} onClick={(e) => { e.preventDefault(); if (rev) rm.mutate(rev); }}>{rm.isPending ? "Reversing…" : "Reverse"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+type Wire = {
+  id: string; txn_id: string; user_id: string; account_id: string; recipient_name: string;
+  recipient_bank: string; swift_bic: string; account_number: string; country: string;
+  currency: string; amount: number; memo: string | null; status: string; created_at: string;
+};
+
+export function WireReview({ emailOf }: { emailOf: (id: string) => string }) {
+  const list = useServerFn(listWires);
+  const act = useServerFn(setWireStatus);
+  const refresh = useRefresh();
+  const qc = useQueryClient();
+  const wires = useQuery({ queryKey: ["admin-wires"], queryFn: () => list() });
+  const [target, setTarget] = useState<{ wire: Wire; action: "complete" | "cancel"; reason: string } | null>(null);
+
+  const m = useMutation({
+    mutationFn: async (t: { wire: Wire; action: "complete" | "cancel"; reason: string }) => {
+      await act({ data: { wireId: t.wire.id, action: t.action, reason: t.reason, idempotencyKey: newKey() } });
+    },
+    onSuccess: () => { toast.success("Wire updated."); setTarget(null); refresh(); qc.invalidateQueries({ queryKey: ["admin-wires"] }); },
+    onError: (e) => toast.error(errMsg(e)),
+  });
+
+  const badge = (s: string) =>
+    s === "PENDING" ? <Badge variant="outline" className="border-amber-500 text-amber-600">Pending</Badge>
+    : s === "COMPLETED" ? <Badge variant="outline" className="border-primary text-primary">Completed</Badge>
+    : <Badge variant="outline" className="border-destructive text-destructive">Cancelled</Badge>;
+
+  return (
+    <div className="border border-border bg-card">
+      <div className="border-b border-border p-5">
+        <h3 className="text-lg font-semibold">International wires</h3>
+        <p className="text-sm text-muted-foreground">Review pending wires. Completing releases the wire; cancelling refunds the customer in full.</p>
+      </div>
+      {wires.isLoading && <p className="p-5 text-muted-foreground">Loading…</p>}
+      {wires.data?.length === 0 && <p className="p-5 text-muted-foreground">No wire transfers yet.</p>}
+      <ul className="divide-y divide-border">
+        {wires.data?.map((w) => (
+          <li key={w.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
+            <div className="min-w-0">
+              <p className="font-medium">{fmt(Number(w.amount))} → {w.recipient_name} ({w.country}) {badge(w.status)}</p>
+              <p className="text-xs text-muted-foreground">
+                {emailOf(w.user_id)} · {w.recipient_bank} · SWIFT {w.swift_bic} · Acct {w.account_number} · Receives {w.currency} · {new Date(w.created_at).toLocaleString()}
+                {w.memo ? ` · ${w.memo}` : ""}
+              </p>
+            </div>
+            {w.status === "PENDING" && (
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => setTarget({ wire: w, action: "complete", reason: "" })}>Complete</Button>
+                <Button size="sm" variant="outline" onClick={() => setTarget({ wire: w, action: "cancel", reason: "" })}>Cancel & refund</Button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <AlertDialog open={target !== null} onOpenChange={(o) => { if (!o && !m.isPending) setTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{target?.action === "complete" ? "Release this wire?" : "Cancel and refund this wire?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {target?.action === "complete"
+                ? `The ${target ? fmt(Number(target.wire.amount)) : ""} wire to ${target?.wire.recipient_name} will be marked as sent.`
+                : `The customer will be refunded ${target ? fmt(Number(target.wire.amount)) : ""} and the wire will be cancelled.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div><Label className="text-xs">Reason (required, recorded in the activity log)</Label><Input className="mt-1" maxLength={300} value={target?.reason ?? ""} onChange={(e) => target && setTarget({ ...target, reason: e.target.value })} /></div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={m.isPending}>Back</AlertDialogCancel>
+            <AlertDialogAction disabled={m.isPending || (target?.reason.trim().length ?? 0) < 3} onClick={(e) => { e.preventDefault(); if (target) m.mutate(target); }}>
+              {m.isPending ? "Working…" : target?.action === "complete" ? "Release wire" : "Cancel & refund"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
