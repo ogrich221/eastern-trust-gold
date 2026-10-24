@@ -88,7 +88,7 @@ export function CustomerBanking({ accounts, onChange, hidden }: { accounts: Bank
       <div className="mt-12 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-2xl">Move money</h2>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => openMode("transfer")}><ArrowLeftRight /> Transfer</Button>
+          <Button onClick={() => openMode("transfer")}><ArrowLeftRight /> Domestic transfer</Button>
           <Button variant="outline" onClick={() => openMode("pay")}><Receipt /> Pay a bill</Button>
           <Button variant="outline" onClick={() => openMode("wire")}><Globe /> International wire</Button>
         </div>

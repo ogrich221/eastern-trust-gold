@@ -449,45 +449,45 @@ export function UserProfile({
             )}
           </div>
         </div>
+      </section>
 
-        {/* Financial Snapshot Summary Ribbon */}
-        <div className="mt-8 grid grid-cols-1 gap-4 border-t border-border pt-6 sm:grid-cols-4">
-          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Checking Balance
-            </p>
-            <p className="mt-2 text-2xl font-bold text-primary font-display">
-              {hideBalances ? "••••••••" : formatCurrency(totalAssets)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">Everyday Checking liquid balance</p>
-          </div>
-          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Liquid Available
-            </p>
-            <p className="mt-2 text-2xl font-bold text-foreground font-display">
-              {hideBalances ? "••••••••" : formatCurrency(availableCash)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">Immediate spend & transfer funds</p>
-          </div>
-          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Bitcoin Portfolio
-            </p>
-            <p className="mt-2 text-2xl font-bold text-[#F7931A] font-display">
-              {hideBalances ? "••••••••" : formatCurrency(btcHoldings * btcPrice)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">{btcHoldings.toFixed(4)} BTC in Custody</p>
-          </div>
-          <div className="rounded-lg bg-background/50 p-4 border border-border/50">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Card Balance / Credit
-            </p>
-            <p className="mt-2 text-2xl font-bold text-foreground font-display">
-              {hideBalances ? "••••••••" : formatCurrency(totalCardOwed)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">Gold Rewards statement owed</p>
-          </div>
+      {/* Financial Snapshot Summary Ribbon */}
+      <section aria-label="Balance summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Total Balance
+          </p>
+          <p className="mt-2 text-2xl font-bold text-primary font-display">
+            {hideBalances ? "••••••••" : formatCurrency(totalAssets)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Across all your accounts</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Available to Spend
+          </p>
+          <p className="mt-2 text-2xl font-bold text-foreground font-display">
+            {hideBalances ? "••••••••" : formatCurrency(availableCash)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Immediate spend & transfer funds</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Card Balance / Credit
+          </p>
+          <p className="mt-2 text-2xl font-bold text-foreground font-display">
+            {hideBalances ? "••••••••" : formatCurrency(totalCardOwed)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Gold Rewards statement owed</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Bitcoin Portfolio
+          </p>
+          <p className="mt-2 text-2xl font-bold text-[#F7931A] font-display">
+            {hideBalances ? "••••••••" : formatCurrency(btcHoldings * btcPrice)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{btcHoldings.toFixed(4)} BTC in Custody</p>
         </div>
       </section>
 
