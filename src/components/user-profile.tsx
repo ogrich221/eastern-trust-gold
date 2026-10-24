@@ -355,11 +355,11 @@ export function UserProfile({
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-5">
             <div className="relative group">
-              <Avatar className="size-20 border-2 border-primary/40 shadow-inner md:size-24">
+              <Avatar className="size-14 border-2 border-primary/40 shadow-inner md:size-16">
                 {avatarUrl ? (
                   <AvatarImage src={avatarUrl} alt={fullName} className="object-cover" />
                 ) : null}
-                <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary md:text-2xl">
+                <AvatarFallback className="bg-primary/10 text-base font-semibold text-primary md:text-lg">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -368,7 +368,7 @@ export function UserProfile({
                 aria-label="Change profile photo"
                 className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
               >
-                <Camera className="size-6" />
+                <Camera className="size-4" />
               </button>
             </div>
 
