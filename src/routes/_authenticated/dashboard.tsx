@@ -49,6 +49,7 @@ function Dashboard() {
             "security_answer_one_hash",
             "security_question_two",
             "security_answer_two_hash",
+            "transfer_pin_hash",
           ] as const;
           if (keys.every((k) => typeof p[k] === "string")) {
             const row = Object.fromEntries(keys.map((k) => [k, String(p[k])])) as Record<
