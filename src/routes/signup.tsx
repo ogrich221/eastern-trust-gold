@@ -47,6 +47,7 @@ function SignupPage(){
           answer_one: form.answer1,
           security_question_two: form.question2,
           answer_two: form.answer2,
+          transfer_pin: form.pin,
         },
       });
       setBusy(false);
@@ -54,8 +55,8 @@ function SignupPage(){
       return;
     } catch (serverErr: any) {
       // Fallback: standard client-side signup if server function encounters issue
-      const [answer1,answer2]=await Promise.all([hash(form.answer1),hash(form.answer2)]);
-      const profile={first_name:form.firstName.trim(),last_name:form.lastName.trim(),phone:form.phone.trim(),address:form.address.trim(),city:form.city.trim(),postal_code:form.postalCode.trim(),security_question_one:form.question1,security_answer_one_hash:answer1,security_question_two:form.question2,security_answer_two_hash:answer2};
+      const [answer1,answer2,pinHash]=await Promise.all([hash(form.answer1),hash(form.answer2),hash(form.pin)]);
+      const profile={first_name:form.firstName.trim(),last_name:form.lastName.trim(),phone:form.phone.trim(),address:form.address.trim(),city:form.city.trim(),postal_code:form.postalCode.trim(),security_question_one:form.question1,security_answer_one_hash:answer1,security_question_two:form.question2,security_answer_two_hash:answer2,transfer_pin_hash:pinHash};
       const {data,error:authError}=await supabase.auth.signUp({
         email:form.email.trim(),
         password:form.password,
