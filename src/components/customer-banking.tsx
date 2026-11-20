@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeftRight, Globe, KeyRound, Receipt } from "lucide-react";
+import { ArrowLeftRight, Globe, KeyRound, Receipt, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -27,6 +28,7 @@ const errors: Record<string, string> = {
   INVALID_CURRENCY: "Choose a currency.",
   INVALID_COUNTRY: "Choose a destination country.",
   COUNTRY_NOT_SUPPORTED: "We don't currently support wire transfers to that country.",
+  ACCOUNT_SUSPENDED: "Account suspended: Transfers and bill payments are restricted.",
 };
 const friendly = (m: string) => Object.entries(errors).find(([k]) => m.includes(k))?.[1] ?? "Something went wrong. Please try again.";
 const fmt = (n: number, c = "USD") => n.toLocaleString("en-US", { style: "currency", currency: c });
@@ -51,13 +53,28 @@ const WIRE_CURRENCIES = [
   "CZK", "TRY", "THB", "MYR", "IDR", "PHP", "KRW", "TWD",
 ];
 
-export function CustomerBanking({ accounts, onChange, hidden }: { accounts: BankAccount[]; onChange: () => void; hidden: boolean }) {
+export function CustomerBanking({
+  accounts,
+  onChange,
+  hidden,
+  isSuspended = false,
+}: {
+  accounts: BankAccount[];
+  onChange: () => void;
+  hidden: boolean;
+  isSuspended?: boolean;
+}) {
   const [txns, setTxns] = useState<Txn[] | null>(null);
   const [mode, setMode] = useState<"transfer" | "pay" | "wire" | null>(null);
   const [filter, setFilter] = useState("all");
   const [hasPin, setHasPin] = useState<boolean | null>(null);
   const [pinOpen, setPinOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<"transfer" | "pay" | "wire" | null>(null);
+  const [userSuspended, setUserSuspended] = useState(isSuspended);
+
+  useEffect(() => {
+    setUserSuspended(isSuspended);
+  }, [isSuspended]);
 
   const loadTxns = useCallback(async () => {
     let q = supabase.from("account_transactions").select("id,account_id,txn_type,amount,currency,description,status,created_at,balance_after").order("created_at", { ascending: false }).limit(100);
@@ -71,12 +88,24 @@ export function CustomerBanking({ accounts, onChange, hidden }: { accounts: Bank
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
+      const suspended = Boolean(
+        isSuspended ||
+        (u.user as any)?.banned ||
+        u.user.user_metadata?.suspended ||
+        (u.user as any)?.app_metadata?.suspended ||
+        ((u.user as any)?.banned_until && new Date((u.user as any).banned_until) > new Date())
+      );
+      if (suspended) setUserSuspended(true);
       const { data } = await supabase.from("profiles").select("transfer_pin_hash").eq("id", u.user.id).maybeSingle();
       setHasPin(Boolean(data?.transfer_pin_hash));
     })();
-  }, []);
+  }, [isSuspended]);
 
   const openMode = (m: "transfer" | "pay" | "wire") => {
+    if (userSuspended) {
+      toast.error("Transfers and payments are restricted while your account is suspended. Please contact customer support.");
+      return;
+    }
     if (hasPin === false) { setPendingMode(m); setPinOpen(true); return; }
     setMode(m);
   };
@@ -87,11 +116,39 @@ export function CustomerBanking({ accounts, onChange, hidden }: { accounts: Bank
   return (
     <>
       <div className="mt-12 flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-2xl">Move money</h2>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Move money</h2>
+          {userSuspended && (
+            <p className="mt-1 text-xs text-destructive flex items-center gap-1 font-medium">
+              <AlertTriangle className="size-3.5" />
+              Transfer features are restricted while your account is suspended.
+            </p>
+          )}
+        </div>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => openMode("transfer")}><ArrowLeftRight /> Domestic transfer</Button>
-          <Button variant="outline" onClick={() => openMode("pay")}><Receipt /> Pay a bill</Button>
-          <Button variant="outline" onClick={() => openMode("wire")}><Globe /> International wire</Button>
+          <Button
+            onClick={() => openMode("transfer")}
+            disabled={userSuspended}
+            className={userSuspended ? "opacity-60 cursor-not-allowed" : ""}
+          >
+            <ArrowLeftRight className="mr-1.5 size-4" /> Domestic transfer
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => openMode("pay")}
+            disabled={userSuspended}
+            className={userSuspended ? "opacity-60 cursor-not-allowed" : ""}
+          >
+            <Receipt className="mr-1.5 size-4" /> Pay a bill
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => openMode("wire")}
+            disabled={userSuspended}
+            className={userSuspended ? "opacity-60 cursor-not-allowed" : ""}
+          >
+            <Globe className="mr-1.5 size-4" /> International wire
+          </Button>
         </div>
       </div>
 
@@ -122,8 +179,8 @@ export function CustomerBanking({ accounts, onChange, hidden }: { accounts: Bank
       </div>
 
       <SetPinDialog open={pinOpen} onClose={() => { setPinOpen(false); setPendingMode(null); }} onDone={() => { setPinOpen(false); setHasPin(true); if (pendingMode) setMode(pendingMode); setPendingMode(null); }} />
-      <MoneyDialog mode={mode === "wire" ? null : mode} accounts={accounts} onClose={() => setMode(null)} onDone={done} />
-      <WireDialog open={mode === "wire"} accounts={accounts} onClose={() => setMode(null)} onDone={done} />
+      <MoneyDialog mode={mode === "wire" ? null : mode} accounts={accounts} isSuspended={userSuspended} onClose={() => setMode(null)} onDone={done} />
+      <WireDialog open={mode === "wire"} accounts={accounts} isSuspended={userSuspended} onClose={() => setMode(null)} onDone={done} />
     </>
   );
 }
@@ -174,7 +231,7 @@ function PinField({ pin, setPin }: { pin: string; setPin: (v: string) => void })
   );
 }
 
-function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "pay" | null; accounts: BankAccount[]; onClose: () => void; onDone: () => void }) {
+function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: { mode: "transfer" | "pay" | null; accounts: BankAccount[]; isSuspended?: boolean; onClose: () => void; onDone: () => void }) {
   const sources = accounts.filter((a) => (mode === "pay" ? a.account_type !== "investment" : ["checking", "savings"].includes(a.account_type)));
   const [from, setFrom] = useState("");
   const [toKind, setToKind] = useState<"own" | "customer">("own");
@@ -198,6 +255,7 @@ function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "
   const src = accounts.find((a) => a.id === from);
   const review = () => {
     setErr("");
+    if (isSuspended) return setErr("Transfers and payments are restricted while your account is suspended.");
     if (!src) return setErr("Choose an account.");
     if (!(amt > 0) || Math.round(amt * 100) !== amt * 100) return setErr(errors["INVALID_AMOUNT"]!);
     if (mode === "transfer" && toKind === "own" && !to) return setErr("Choose where to send it.");
@@ -206,6 +264,7 @@ function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "
     setStep("confirm");
   };
   const submit = async () => {
+    if (isSuspended) return setErr("Transfers and payments are restricted while your account is suspended.");
     setBusy(true); setErr("");
     const pinHash = await hashPin(pin);
     const { error } = mode === "transfer"
@@ -271,7 +330,7 @@ function MoneyDialog({ mode, accounts, onClose, onDone }: { mode: "transfer" | "
   );
 }
 
-function WireDialog({ open, accounts, onClose, onDone }: { open: boolean; accounts: BankAccount[]; onClose: () => void; onDone: () => void }) {
+function WireDialog({ open, accounts, isSuspended = false, onClose, onDone }: { open: boolean; accounts: BankAccount[]; isSuspended?: boolean; onClose: () => void; onDone: () => void }) {
   const sources = accounts.filter((a) => ["checking", "savings"].includes(a.account_type));
   const [from, setFrom] = useState("");
   const [recipient, setRecipient] = useState("");
@@ -297,6 +356,7 @@ function WireDialog({ open, accounts, onClose, onDone }: { open: boolean; accoun
   const src = accounts.find((a) => a.id === from);
   const review = () => {
     setErr("");
+    if (isSuspended) return setErr("Wire transfers are restricted while your account is suspended.");
     if (!src) return setErr("Choose an account.");
     if (!(amt > 0) || Math.round(amt * 100) !== amt * 100) return setErr(errors["INVALID_AMOUNT"]!);
     if (recipient.trim().length < 2) return setErr(errors["INVALID_RECIPIENT"]!);
@@ -307,6 +367,7 @@ function WireDialog({ open, accounts, onClose, onDone }: { open: boolean; accoun
     setStep("confirm");
   };
   const submit = async () => {
+    if (isSuspended) return setErr("Wire transfers are restricted while your account is suspended.");
     setBusy(true); setErr("");
     const { error } = await supabase.rpc("customer_wire", {
       _from: from, _amount: amt, _currency: currency, _recipient_name: recipient, _recipient_bank: bank,

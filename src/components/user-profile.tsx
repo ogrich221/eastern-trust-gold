@@ -359,6 +359,10 @@ export function UserProfile({
 
   const handleBuyBitcoin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isSuspended) {
+      toast.error("Account Suspended: Transfers and purchases are restricted. Please contact customer support.");
+      return;
+    }
     const usd = parseFloat(btcBuyUsd.replace(/,/g, ""));
     if (isNaN(usd) || usd <= 0) {
       toast.error("Please enter a valid dollar amount.");
@@ -920,6 +924,7 @@ export function UserProfile({
             <CustomerBanking
               accounts={visibleAccounts}
               hidden={hideBalances}
+              isSuspended={isSuspended}
               onChange={() => onRefresh?.()}
             />
           </div>
@@ -1286,6 +1291,7 @@ export function UserProfile({
           <CustomerBanking
             accounts={accounts}
             hidden={hideBalances}
+            isSuspended={isSuspended}
             onChange={() => onRefresh?.()}
           />
         </TabsContent>

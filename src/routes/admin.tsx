@@ -927,7 +927,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             <Button variant="outline" size="sm" onClick={() => setAvatarModalOpen(true)} className="text-xs">
               <Camera className="mr-1.5 size-3.5" /> Photo
             </Button>
-            <Button onClick={() => setImpersonateOpen(true)} disabled={c.banned} className="text-xs">
+            <Button onClick={() => setImpersonateOpen(true)} className="text-xs">
               <LogIn className="mr-1.5 size-3.5" /> Log in as user
             </Button>
             <Button

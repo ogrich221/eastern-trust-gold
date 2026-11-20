@@ -197,7 +197,11 @@ export const listCustomers = createServerFn({ method: "GET" })
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at ?? null,
         confirmed: Boolean(u.email_confirmed_at),
-        banned: Boolean((u as { banned_until?: string | null }).banned_until && new Date((u as { banned_until: string }).banned_until) > new Date()),
+        banned: Boolean(
+          (u.user_metadata as any)?.suspended ||
+          (u.app_metadata as any)?.suspended ||
+          ((u as { banned_until?: string | null }).banned_until && new Date((u as { banned_until: string }).banned_until) > new Date())
+        ),
         is_admin: (roles ?? []).some((r) => r.user_id === u.id && r.role === "admin"),
         profile: prof,
         accounts: userAccounts,
@@ -715,7 +719,16 @@ export const setCustomerSuspended = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ userId: z.string().uuid(), suspended: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
     const { admin, log } = await assertAdmin(context);
-    const { error } = await admin.auth.admin.updateUserById(data.userId, { ban_duration: data.suspended ? "876000h" : "none" });
+    const { data: userRes } = await admin.auth.admin.getUserById(data.userId);
+    const existingUser = userRes?.user;
+
+    // Ensure ban_duration is "none" so suspended users can always log in to their account!
+    // Track suspension status in user_metadata and app_metadata to enforce transfer restrictions.
+    const { error } = await admin.auth.admin.updateUserById(data.userId, {
+      ban_duration: "none",
+      user_metadata: { ...(existingUser?.user_metadata ?? {}), suspended: data.suspended },
+      app_metadata: { ...(existingUser?.app_metadata ?? {}), suspended: data.suspended },
+    });
     if (error) throw new Error("Could not change suspension");
     await log(data.suspended ? "suspend" : "unsuspend", data.userId);
     return { ok: true };
