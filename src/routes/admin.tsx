@@ -36,7 +36,6 @@ import {
   Building2,
   MapPin,
   Phone,
-  Calendar,
   Shield,
   ArrowDownRight,
   ArrowUpRight,
@@ -908,8 +907,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                 )}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {c.email} · ID: <span className="font-mono">{c.id.slice(0, 8)}</span> · Joined{" "}
-                {new Date(c.created_at).toLocaleDateString()} · {c.confirmed ? "Email verified" : "Unverified"}
+                {c.email} · ID: <span className="font-mono">{c.id.slice(0, 8)}</span> · {c.confirmed ? "Email verified" : "Unverified"}
               </p>
             </div>
           </div>
@@ -1116,14 +1114,6 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                     <Copy className="size-3" />
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <p className="text-muted-foreground">Registration Timestamp</p>
-                <p className="mt-1 font-mono text-[11px] text-foreground flex items-center gap-1">
-                  <Calendar className="size-3 text-muted-foreground" />
-                  {new Date(c.created_at).toLocaleString()}
-                </p>
               </div>
 
               <div>

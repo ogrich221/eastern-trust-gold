@@ -99,7 +99,7 @@ export function AdminReports({ customers, auditLogs, emailOf }: AdminReportsProp
   }, [customers]);
 
   const exportCustomers = () => {
-    const headers = ["Customer ID", "Email", "First Name", "Last Name", "Phone", "City", "Joined Date", "Status", "Total Balance"];
+    const headers = ["Customer ID", "Email", "First Name", "Last Name", "Phone", "City", "Status", "Total Balance"];
     const rows = customers.map((c) => {
       const fn = c.profile?.first_name || "";
       const ln = c.profile?.last_name || "";
@@ -114,7 +114,6 @@ export function AdminReports({ customers, auditLogs, emailOf }: AdminReportsProp
         `"${ln}"`,
         `"${phone}"`,
         `"${city}"`,
-        `"${new Date(c.created_at).toLocaleDateString()}"`,
         `"${status}"`,
         totalBal.toFixed(2),
       ].join(",");
