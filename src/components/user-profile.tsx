@@ -32,7 +32,8 @@ import {
   Bell,
   LogOut,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,14 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CustomerBanking } from "./customer-banking";
@@ -389,62 +398,84 @@ export function UserProfile({
 
   return (
     <div className="space-y-8">
-      {/* Dashboard action bar — top right */}
-      <div className="flex flex-wrap items-center justify-end gap-2" aria-label="Account actions">
-        <Button
-          size="sm"
-          onClick={() => setActiveTab("bitcoin")}
-          className="bg-[#F7931A] text-white hover:bg-[#F7931A]/90 text-xs font-semibold shadow-sm"
-        >
-          <Bitcoin className="mr-1.5 size-4" /> Buy Bitcoin
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setHideBalances(!hideBalances)}
-          className="text-xs"
-        >
-          {hideBalances ? <Eye className="mr-1.5 size-3.5" /> : <EyeOff className="mr-1.5 size-3.5" />}
-          {hideBalances ? "Show Balances" : "Hide Balances"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsAvatarDialogOpen(true)}
-          className="text-xs"
-        >
-          <Camera className="mr-1.5 size-3.5" /> Photo
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsEditingContact(true)}
-          className="text-xs"
-        >
-          <Edit3 className="mr-1.5 size-3.5" /> Edit Profile
-        </Button>
-        <Button
-          size="sm"
-          asChild
-          className="text-xs bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Link to="/help">
-            <Sparkles className="mr-1.5 size-3.5" /> Support & Concierge
-          </Link>
-        </Button>
-        {!isAdminView && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-border"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.assign("/auth");
-            }}
-          >
-            <LogOut className="mr-1.5 size-3.5" /> Sign out
-          </Button>
-        )}
+      {/* Dashboard action bar — hidden in compact dashboard menu */}
+      <div className="flex items-center justify-end" aria-label="Account actions">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-2 border-border/80 text-xs font-medium hover:bg-accent"
+            >
+              <MoreHorizontal className="size-4" />
+              <span>Dashboard Options</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 p-1.5 bg-card border-border shadow-lg z-50">
+            <DropdownMenuLabel className="px-2 py-1.5 text-xs text-muted-foreground font-semibold">
+              Dashboard Actions
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => setActiveTab("bitcoin")}
+              className="cursor-pointer text-xs py-2"
+            >
+              <Bitcoin className="mr-2 size-4 text-[#F7931A]" />
+              <span>Buy Bitcoin</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setHideBalances(!hideBalances)}
+              className="cursor-pointer text-xs py-2"
+            >
+              {hideBalances ? (
+                <>
+                  <Eye className="mr-2 size-4 text-primary" />
+                  <span>Show Balances</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff className="mr-2 size-4" />
+                  <span>Hide Balances</span>
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setIsAvatarDialogOpen(true)}
+              className="cursor-pointer text-xs py-2"
+            >
+              <Camera className="mr-2 size-4 text-muted-foreground" />
+              <span>Change Photo</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setIsEditingContact(true)}
+              className="cursor-pointer text-xs py-2"
+            >
+              <Edit3 className="mr-2 size-4 text-muted-foreground" />
+              <span>Edit Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="cursor-pointer text-xs py-2">
+              <Link to="/help">
+                <Sparkles className="mr-2 size-4 text-primary" />
+                <span>Support & Concierge</span>
+              </Link>
+            </DropdownMenuItem>
+            {!isAdminView && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    window.location.assign("/auth");
+                  }}
+                  className="cursor-pointer text-xs py-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <LogOut className="mr-2 size-4" />
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Top Profile Header Card */}
