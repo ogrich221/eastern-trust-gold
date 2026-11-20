@@ -350,11 +350,69 @@ export function UserProfile({
 
   return (
     <div className="space-y-8">
+      {/* Dashboard action bar — top right */}
+      <div className="flex flex-wrap items-center justify-end gap-2" aria-label="Account actions">
+        <Button
+          size="sm"
+          onClick={() => setActiveTab("bitcoin")}
+          className="bg-[#F7931A] text-white hover:bg-[#F7931A]/90 text-xs font-semibold shadow-sm"
+        >
+          <Bitcoin className="mr-1.5 size-4" /> Buy Bitcoin
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setHideBalances(!hideBalances)}
+          className="text-xs"
+        >
+          {hideBalances ? <Eye className="mr-1.5 size-3.5" /> : <EyeOff className="mr-1.5 size-3.5" />}
+          {hideBalances ? "Show Balances" : "Hide Balances"}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsAvatarDialogOpen(true)}
+          className="text-xs"
+        >
+          <Camera className="mr-1.5 size-3.5" /> Photo
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsEditingContact(true)}
+          className="text-xs"
+        >
+          <Edit3 className="mr-1.5 size-3.5" /> Edit Profile
+        </Button>
+        <Button
+          size="sm"
+          asChild
+          className="text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          <Link to="/help">
+            <Sparkles className="mr-1.5 size-3.5" /> Support Concierge
+          </Link>
+        </Button>
+        {!isAdminView && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.assign("/auth");
+            }}
+          >
+            <LogOut className="mr-1.5 size-3.5" /> Sign out
+          </Button>
+        )}
+      </div>
+
       {/* Top Profile Header Card */}
       <section className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-card via-card to-card/60 p-6 md:p-8 shadow-sm">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-5">
-            <div className="relative group">
+            <div className="shrink-0">
               <Avatar className="size-14 border-2 border-primary/40 shadow-inner md:size-16">
                 {avatarUrl ? (
                   <AvatarImage src={avatarUrl} alt={fullName} className="object-cover" />
@@ -363,13 +421,6 @@ export function UserProfile({
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <button
-                onClick={handleAvatarChange}
-                aria-label="Change profile photo"
-                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                <Camera className="size-4" />
-              </button>
             </div>
 
             <div>
@@ -392,62 +443,6 @@ export function UserProfile({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              size="sm"
-              onClick={() => setActiveTab("bitcoin")}
-              className="bg-[#F7931A] text-white hover:bg-[#F7931A]/90 text-xs font-semibold shadow-sm"
-            >
-              <Bitcoin className="mr-1.5 size-4" /> Buy Bitcoin
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setHideBalances(!hideBalances)}
-              className="text-xs"
-            >
-              {hideBalances ? <Eye className="mr-1.5 size-3.5" /> : <EyeOff className="mr-1.5 size-3.5" />}
-              {hideBalances ? "Show Balances" : "Hide Balances"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAvatarDialogOpen(true)}
-              className="text-xs"
-            >
-              <Camera className="mr-1.5 size-3.5" /> Photo
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditingContact(true)}
-              className="text-xs"
-            >
-              <Edit3 className="mr-1.5 size-3.5" /> Edit Profile
-            </Button>
-            <Button
-              size="sm"
-              asChild
-              className="text-xs bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Link to="/help">
-                <Sparkles className="mr-1.5 size-3.5" /> Support Concierge
-              </Link>
-            </Button>
-            {!isAdminView && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  window.location.assign("/auth");
-                }}
-              >
-                <LogOut className="mr-1.5 size-3.5" /> Sign out
-              </Button>
-            )}
-          </div>
         </div>
       </section>
 
