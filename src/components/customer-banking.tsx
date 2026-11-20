@@ -3,6 +3,7 @@ import { ArrowLeftRight, Globe, KeyRound, Receipt } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -154,8 +155,8 @@ function SetPinDialog({ open, onClose, onDone }: { open: boolean; onClose: () =>
           <DialogDescription>Before you can move money, set a 4–6 digit PIN. You'll enter it to approve every transfer, payment or wire.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          <div className="grid gap-2"><Label htmlFor="newpin">Transfer PIN</Label><Input id="newpin" type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} /></div>
-          <div className="grid gap-2"><Label htmlFor="newpin2">Confirm PIN</Label><Input id="newpin2" type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ""))} /></div>
+          <div className="grid gap-2"><Label htmlFor="newpin">Transfer PIN</Label><PasswordInput id="newpin" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} /></div>
+          <div className="grid gap-2"><Label htmlFor="newpin2">Confirm PIN</Label><PasswordInput id="newpin2" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ""))} /></div>
           {err && <p className="text-sm text-destructive">{err}</p>}
         </div>
         <DialogFooter><Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Save PIN"}</Button></DialogFooter>
@@ -168,7 +169,7 @@ function PinField({ pin, setPin }: { pin: string; setPin: (v: string) => void })
   return (
     <div className="grid gap-2">
       <Label htmlFor="txnpin">Transfer PIN</Label>
-      <Input id="txnpin" type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} placeholder="4–6 digits" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
+      <PasswordInput id="txnpin" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} placeholder="4–6 digits" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
     </div>
   );
 }

@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -173,7 +174,7 @@ function AdminLogin() {
         </div>
         <div>
           <Label htmlFor="ap">Admin Password</Label>
-          <Input id="ap" type="password" className="mt-1" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput id="ap" className="mt-1" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" className="w-full" disabled={busy || !username || !password}>
@@ -415,12 +416,12 @@ function AdminPortal({ adminName }: { adminName: string }) {
                       Supabase restricts user monitoring, listing, and direct customer administration to the backend <code className="text-foreground">service_role</code> secret key. Paste your secret key below to connect your database immediately:
                     </p>
                     <form onSubmit={handleSaveKey} className="flex flex-wrap gap-2 pt-1">
-                      <Input
-                        type="password"
+                      <PasswordInput
                         placeholder="Paste service_role key (sb_secret_... or eyJhbGci...)"
                         value={serviceKeyInput}
                         onChange={(e) => setServiceKeyInput(e.target.value)}
-                        className="text-xs h-9 font-mono max-w-md bg-background"
+                        className="max-w-md"
+                        inputClassName="text-xs h-9 font-mono bg-background"
                       />
                       <Button
                         type="submit"
@@ -1451,8 +1452,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               }}
             >
               <h3 className="text-base font-semibold">Reset Password</h3>
-              <Input
-                type="password"
+              <PasswordInput
                 className="mt-4"
                 placeholder="New password (min 10 characters)"
                 value={password}

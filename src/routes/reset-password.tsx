@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { LockKeyhole } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/reset-password")({
@@ -81,11 +81,11 @@ function ResetPage() {
             <form onSubmit={submit} className="space-y-5">
               <div>
                 <Label htmlFor="pw">New password</Label>
-                <Input id="pw" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-2 h-11" />
+                <PasswordInput id="pw" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-2" inputClassName="h-11" />
               </div>
               <div>
                 <Label htmlFor="pw2">Confirm new password</Label>
-                <Input id="pw2" type="password" autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} className="mt-2 h-11" />
+                <PasswordInput id="pw2" autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} className="mt-2" inputClassName="h-11" />
               </div>
               {error && <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">{error}</p>}
               <Button className="h-11 w-full" disabled={busy}>{busy ? "Saving…" : "Update password"}</Button>

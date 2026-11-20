@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/auth")({
@@ -130,15 +131,15 @@ function AuthPage() {
               <Label htmlFor="password">Password</Label>
               <Link to="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
             </div>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="current-password"
               required
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-2 h-11"
+              className="mt-2"
+              inputClassName="h-11"
             />
           </div>
 
