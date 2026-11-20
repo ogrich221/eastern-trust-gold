@@ -1528,7 +1528,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             <DialogDescription>Live preview of the customer's dashboard and profile experience (recorded in audit log).</DialogDescription>
           </DialogHeader>
           <UserProfile
-            user={{ id: c.id, email: c.email }}
+            user={{ id: c.id, email: c.email, banned: c.banned }}
             initialProfile={c.profile}
             accounts={c.accounts.map((a) => ({
               ...a,
@@ -1537,6 +1537,10 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               credit_limit: a.credit_limit === null ? null : Number(a.credit_limit),
             }))}
             isAdminView={true}
+            isSuspended={c.banned}
+            onStatusChange={async (suspended) => {
+              await suspendM.mutateAsync({ userId: c.id, suspended });
+            }}
             onSaveContact={async (data) => {
               await contactInfoM.mutateAsync({
                 userId: c.id,

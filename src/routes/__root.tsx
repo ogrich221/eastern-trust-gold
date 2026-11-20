@@ -230,21 +230,18 @@ function RootComponent() {
           </nav>
           <div className="hidden items-center gap-3 lg:flex">
             {signedIn ? (
-              <>
-                <Button asChild variant="outline" className="flex items-center gap-2">
-                  <Link to="/dashboard">
-                    <span className="relative flex size-5 shrink-0 overflow-hidden rounded-full border border-primary/40">
-                      {userAvatar ? (
-                        <img src={userAvatar} alt="Profile" className="size-full object-cover" />
-                      ) : (
-                        <span className="flex size-full items-center justify-center bg-primary/10 text-[9px] font-semibold text-primary">ET</span>
-                      )}
-                    </span>
-                    My account
-                  </Link>
-                </Button>
-                <Button onClick={signOut}>Sign out</Button>
-              </>
+              <Button asChild variant="outline" className="flex items-center gap-2">
+                <Link to="/dashboard">
+                  <span className="relative flex size-5 shrink-0 overflow-hidden rounded-full border border-primary/40">
+                    {userAvatar ? (
+                      <img src={userAvatar} alt="Profile" className="size-full object-cover" />
+                    ) : (
+                      <span className="flex size-full items-center justify-center bg-primary/10 text-[9px] font-semibold text-primary">ET</span>
+                    )}
+                  </span>
+                  Dashboard
+                </Link>
+              </Button>
             ) : (
               <>
                 <Button asChild variant="ghost"><Link to="/auth">Log in</Link></Button>
@@ -268,10 +265,9 @@ function RootComponent() {
                         <span className="flex size-full items-center justify-center bg-primary/10 text-[9px] font-semibold text-primary">ET</span>
                       )}
                     </span>
-                    My account
+                    Dashboard
                   </Link>
                 </Button>
-                <Button onClick={() => { setMenuOpen(false); signOut(); }} className="flex-1">Sign out</Button>
               </div>
             ) : (
               <div className="mt-4 flex gap-3">

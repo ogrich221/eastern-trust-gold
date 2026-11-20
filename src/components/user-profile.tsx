@@ -30,7 +30,9 @@ import {
   Layers,
   Sparkles,
   Bell,
-  LogOut
+  LogOut,
+  AlertTriangle,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,11 +72,19 @@ export type ProfileData = {
 };
 
 interface UserProfileProps {
-  user: { id: string; email?: string; user_metadata?: Record<string, any> };
+  user: {
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, any>;
+    banned?: boolean;
+    banned_until?: string | null;
+  };
   initialProfile?: ProfileData | null;
   accounts: ProfileAccount[];
   onRefresh?: () => void;
   isAdminView?: boolean;
+  isSuspended?: boolean;
+  onStatusChange?: (suspended: boolean) => Promise<void>;
   onSaveContact?: (data: { first_name: string; last_name: string; phone: string; address: string; city: string; postal_code: string }) => Promise<void>;
 }
 
@@ -105,9 +115,38 @@ export function UserProfile({
   accounts,
   onRefresh,
   isAdminView = false,
+  isSuspended: propIsSuspended,
+  onStatusChange,
   onSaveContact,
 }: UserProfileProps) {
   const [profile, setProfile] = useState<ProfileData>(initialProfile ?? {});
+  const [localSuspended, setLocalSuspended] = useState<boolean | null>(null);
+
+  const isSuspended = useMemo(() => {
+    if (localSuspended !== null) return localSuspended;
+    if (typeof propIsSuspended === "boolean") return propIsSuspended;
+    if ((user as any)?.banned) return true;
+    const bu = (user as any)?.banned_until;
+    if (bu && new Date(bu) > new Date()) return true;
+    if (user.user_metadata?.suspended || user.user_metadata?.status === "suspended") return true;
+    if ((user as any)?.app_metadata?.suspended || (user as any)?.app_metadata?.status === "suspended") return true;
+    if ((profile as any)?.status === "suspended" || (profile as any)?.is_suspended) return true;
+    return false;
+  }, [localSuspended, propIsSuspended, user, profile]);
+
+  const handleToggleStatus = async (nextSuspended: boolean) => {
+    try {
+      if (onStatusChange) {
+        await onStatusChange(nextSuspended);
+      }
+      setLocalSuspended(nextSuspended);
+      toast.success(nextSuspended ? "Account status updated to Suspended." : "Account status updated to Active.");
+      onRefresh?.();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update account status.");
+    }
+  };
+
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [revealedAccounts, setRevealedAccounts] = useState<Record<string, boolean>>({});
   const [hideBalances, setHideBalances] = useState(false);
@@ -390,14 +429,14 @@ export function UserProfile({
           className="text-xs bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <Link to="/help">
-            <Sparkles className="mr-1.5 size-3.5" /> Support Concierge
+            <Sparkles className="mr-1.5 size-3.5" /> Support & Concierge
           </Link>
         </Button>
         {!isAdminView && (
           <Button
             variant="outline"
             size="sm"
-            className="text-xs"
+            className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-border"
             onClick={async () => {
               await supabase.auth.signOut();
               window.location.assign("/auth");
@@ -412,7 +451,7 @@ export function UserProfile({
       <section className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-card via-card to-card/60 p-6 md:p-8 shadow-sm">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-5">
-            <div className="shrink-0">
+            <div className="relative group shrink-0">
               <Avatar className="size-14 border-2 border-primary/40 shadow-inner md:size-16">
                 {avatarUrl ? (
                   <AvatarImage src={avatarUrl} alt={fullName} className="object-cover" />
@@ -421,6 +460,15 @@ export function UserProfile({
                   {initials}
                 </AvatarFallback>
               </Avatar>
+              <button
+                type="button"
+                onClick={() => setIsAvatarDialogOpen(true)}
+                aria-label="Change profile photo"
+                title="Change photo"
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <Camera className="size-4" />
+              </button>
             </div>
 
             <div>
@@ -429,9 +477,34 @@ export function UserProfile({
                 <Badge variant="outline" className="border-primary/40 bg-primary/5 text-primary text-xs font-medium">
                   <ShieldCheck className="mr-1 size-3" /> Premier Account
                 </Badge>
+                {/* Account Status Badge (Active or Suspended) */}
+                {isSuspended ? (
+                  <Badge variant="destructive" className="flex items-center gap-1.5 text-xs font-semibold shadow-sm bg-destructive/15 text-destructive border border-destructive/30">
+                    <AlertTriangle className="size-3 text-destructive" /> Account: Suspended
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-medium border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
+                    <span className="size-2 rounded-full bg-emerald-400" /> Account: Active
+                  </Badge>
+                )}
+                {isAdminView && onStatusChange && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleToggleStatus(!isSuspended)}
+                    className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    Set to {isSuspended ? "Active" : "Suspended"}
+                  </Button>
+                )}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{user.email || "No email linked"}</p>
               <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className={`inline-block size-2 rounded-full ${isSuspended ? "bg-destructive animate-pulse" : "bg-emerald-400"}`} />
+                  Account Status: <strong className={isSuspended ? "text-destructive" : "text-emerald-400"}>{isSuspended ? "Suspended" : "Active / Good Standing"}</strong>
+                </span>
                 <span className="flex items-center gap-1">
                   <MapPin className="size-3.5 text-primary" />
                   {profile.city ? `${profile.city}, USA` : "Eastern Trust Client"}
@@ -446,42 +519,143 @@ export function UserProfile({
         </div>
       </section>
 
+      {/* Account Warning Notification Banner if Suspended */}
+      {isSuspended && (
+        <div className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive shadow-sm">
+          <AlertTriangle className="size-5 shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-semibold text-sm">Account Notice: Account Suspended</p>
+            <p className="text-muted-foreground">
+              This banking account is currently marked as suspended. Outgoing wire transfers, debits, and new card transactions may be restricted. Please reach out to our 24/7 Client Concierge for assistance.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Financial Snapshot Summary Ribbon */}
       <section aria-label="Balance summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Total Balance
-          </p>
-          <p className="mt-2 text-2xl font-bold text-primary font-display">
-            {hideBalances ? "••••••••" : formatCurrency(totalAssets)}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Total Balance
+            </p>
+            <button
+              type="button"
+              onClick={() => setHideBalances(!hideBalances)}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 -mr-1 -mt-1 rounded hover:bg-muted/60"
+              title={hideBalances ? "Show balance" : "Hide balance"}
+              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+            >
+              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4 text-primary" />}
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <p className="text-2xl font-bold text-primary font-display">
+              {hideBalances ? "••••••••" : formatCurrency(totalAssets)}
+            </p>
+            <button
+              type="button"
+              onClick={() => setHideBalances(!hideBalances)}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-muted/60"
+              title={hideBalances ? "Show balance" : "Hide balance"}
+              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+            >
+              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4 text-primary" />}
+            </button>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">Across all your accounts</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Available to Spend
-          </p>
-          <p className="mt-2 text-2xl font-bold text-foreground font-display">
-            {hideBalances ? "••••••••" : formatCurrency(availableCash)}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Available to Spend
+            </p>
+            <button
+              type="button"
+              onClick={() => setHideBalances(!hideBalances)}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 -mr-1 -mt-1 rounded hover:bg-muted/60"
+              title={hideBalances ? "Show balance" : "Hide balance"}
+              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+            >
+              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4 text-muted-foreground" />}
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <p className="text-2xl font-bold text-foreground font-display">
+              {hideBalances ? "••••••••" : formatCurrency(availableCash)}
+            </p>
+            <button
+              type="button"
+              onClick={() => setHideBalances(!hideBalances)}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-muted/60"
+              title={hideBalances ? "Show balance" : "Hide balance"}
+              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+            >
+              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">Immediate spend & transfer funds</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Card Balance / Credit
-          </p>
-          <p className="mt-2 text-2xl font-bold text-foreground font-display">
-            {hideBalances ? "••••••••" : formatCurrency(totalCardOwed)}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Card Balance / Credit
+            </p>
+            <button
+              type="button"
+              onClick={() => setHideBalances(!hideBalances)}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 -mr-1 -mt-1 rounded hover:bg-muted/60"
+              title={hideBalances ? "Show balance" : "Hide balance"}
+              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+            >
+              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4 text-muted-foreground" />}
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <p className="text-2xl font-bold text-foreground font-display">
+              {hideBalances ? "••••••••" : formatCurrency(totalCardOwed)}
+            </p>
+            <button
+              type="button"
+              onClick={() => setHideBalances(!hideBalances)}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-muted/60"
+              title={hideBalances ? "Show balance" : "Hide balance"}
+              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+            >
+              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">Gold Rewards statement owed</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Bitcoin Portfolio
-          </p>
-          <p className="mt-2 text-2xl font-bold text-[#F7931A] font-display">
-            {hideBalances ? "••••••••" : formatCurrency(btcHoldings * btcPrice)}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Bitcoin Portfolio
+            </p>
+            <button
+              type="button"
+              onClick={() => setHideBalances(!hideBalances)}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 -mr-1 -mt-1 rounded hover:bg-muted/60"
+              title={hideBalances ? "Show balance" : "Hide balance"}
+              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+            >
+              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4 text-[#F7931A]" />}
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <p className="text-2xl font-bold text-[#F7931A] font-display">
+              {hideBalances ? "••••••••" : formatCurrency(btcHoldings * btcPrice)}
+            </p>
+            <button
+              type="button"
+              onClick={() => setHideBalances(!hideBalances)}
+              className="text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-muted/60"
+              title={hideBalances ? "Show balance" : "Hide balance"}
+              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+            >
+              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4 text-[#F7931A]" />}
+            </button>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">{btcHoldings.toFixed(4)} BTC in Custody</p>
         </div>
       </section>
@@ -625,22 +799,66 @@ export function UserProfile({
                       {/* Balances Display */}
                       <div className="mt-5 grid grid-cols-2 gap-4 border-t border-border pt-4">
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground">
-                            {a.account_type === "credit" ? "Available Credit" : "Available Funds"}
-                          </p>
-                          <p className="mt-1 text-xl font-bold text-foreground">
-                            {hideBalances ? "••••••" : formatCurrency(a.available_balance, a.currency)}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {a.account_type === "credit" ? "Available Credit" : "Available Funds"}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setHideBalances(!hideBalances)}
+                              className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded hover:bg-muted/50"
+                              title={hideBalances ? "Show balance" : "Hide balance"}
+                              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+                            >
+                              {hideBalances ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                            </button>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <p className="text-xl font-bold text-foreground">
+                              {hideBalances ? "••••••" : formatCurrency(a.available_balance, a.currency)}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setHideBalances(!hideBalances)}
+                              className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded hover:bg-muted/50"
+                              title={hideBalances ? "Show balance" : "Hide balance"}
+                              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+                            >
+                              {hideBalances ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                            </button>
+                          </div>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground">
-                            {a.account_type === "credit"
-                              ? "Current Balance Owed"
-                              : "Current Balance"}
-                          </p>
-                          <p className="mt-1 text-xl font-semibold text-muted-foreground">
-                            {hideBalances ? "••••••" : formatCurrency(a.current_balance, a.currency)}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {a.account_type === "credit"
+                                ? "Current Balance Owed"
+                                : "Current Balance"}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setHideBalances(!hideBalances)}
+                              className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded hover:bg-muted/50"
+                              title={hideBalances ? "Show balance" : "Hide balance"}
+                              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+                            >
+                              {hideBalances ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                            </button>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <p className="text-xl font-semibold text-muted-foreground">
+                              {hideBalances ? "••••••" : formatCurrency(a.current_balance, a.currency)}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setHideBalances(!hideBalances)}
+                              className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded hover:bg-muted/50"
+                              title={hideBalances ? "Show balance" : "Hide balance"}
+                              aria-label={hideBalances ? "Show balance" : "Hide balance"}
+                            >
+                              {hideBalances ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -805,8 +1023,16 @@ export function UserProfile({
                         <p className="text-xs font-semibold text-foreground">
                           {primaryChecking?.name || "Everyday Checking"} •••• {primaryChecking?.last_four || "9182"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          Available balance: {formatCurrency(primaryChecking?.available_balance || 0)}
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          Available balance: {hideBalances ? "••••••" : formatCurrency(primaryChecking?.available_balance || 0)}
+                          <button
+                            type="button"
+                            onClick={() => setHideBalances(!hideBalances)}
+                            className="text-muted-foreground hover:text-primary transition-colors p-0.5"
+                            title={hideBalances ? "Show balance" : "Hide balance"}
+                          >
+                            {hideBalances ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                          </button>
                         </p>
                       </div>
                     </div>
@@ -820,8 +1046,16 @@ export function UserProfile({
                 <div>
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-medium text-muted-foreground">Purchase Amount (USD)</Label>
-                    <span className="text-xs text-muted-foreground">
-                      Available: {formatCurrency(primaryChecking?.available_balance || 0)}
+                    <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                      Available: {hideBalances ? "••••••" : formatCurrency(primaryChecking?.available_balance || 0)}
+                      <button
+                        type="button"
+                        onClick={() => setHideBalances(!hideBalances)}
+                        className="text-muted-foreground hover:text-primary transition-colors p-0.5"
+                        title={hideBalances ? "Show balance" : "Hide balance"}
+                      >
+                        {hideBalances ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                      </button>
                     </span>
                   </div>
                   <div className="mt-1.5 relative">
