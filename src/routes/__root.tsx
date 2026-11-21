@@ -7,6 +7,7 @@ import {
   HeadContent,
   Scripts,
   useNavigate,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
@@ -169,6 +170,8 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAdmin = pathname.startsWith("/admin");
   const [signedIn, setSignedIn] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -217,46 +220,21 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TawkChat />
+      {!isAdmin && <TawkChat />}
       <NetlifyDrawerRemover />
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
-          <Link to="/" className="flex items-center gap-3" aria-label="Eastern Trust Bank home">
-            <span className="grid size-10 place-items-center border border-primary text-lg font-bold text-primary">ET</span>
-            <span className="font-display text-xl font-semibold text-foreground">Eastern Trust <span className="text-primary">Bank</span></span>
-          </Link>
-          <nav className="hidden items-center gap-7 lg:flex" aria-label="Main navigation">
-            {links.map(([label, to]) => <Link key={to} to={to} className="text-sm text-muted-foreground transition-colors hover:text-primary" activeProps={{ className: "text-primary" }}>{label}</Link>)}
-          </nav>
-          <div className="hidden items-center gap-3 lg:flex">
-            {signedIn ? (
-              <Button asChild variant="outline" className="flex items-center gap-2">
-                <Link to="/dashboard">
-                  <span className="relative flex size-5 shrink-0 overflow-hidden rounded-full border border-primary/40">
-                    {userAvatar ? (
-                      <img src={userAvatar} alt="Profile" className="size-full object-cover" />
-                    ) : (
-                      <span className="flex size-full items-center justify-center bg-primary/10 text-[9px] font-semibold text-primary">ET</span>
-                    )}
-                  </span>
-                  Dashboard
-                </Link>
-              </Button>
-            ) : (
-              <>
-                <Button asChild variant="ghost"><Link to="/auth">Log in</Link></Button>
-                <Button asChild><Link to="/signup">Open an account</Link></Button>
-              </>
-            )}
-          </div>
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X /> : <Menu />}</Button>
-        </div>
-        {menuOpen && (
-          <nav className="border-t border-border px-5 py-5 lg:hidden">
-            {links.map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)} className="block border-b border-border py-3 text-sm">{label}</Link>)}
-            {signedIn ? (
-              <div className="mt-4 flex gap-3">
-                <Button asChild variant="outline" className="flex-1 flex items-center justify-center gap-2" onClick={() => setMenuOpen(false)}>
+      {!isAdmin && (
+        <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
+          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
+            <Link to="/" className="flex items-center gap-3" aria-label="Eastern Trust Bank home">
+              <span className="grid size-10 place-items-center border border-primary text-lg font-bold text-primary">ET</span>
+              <span className="font-display text-xl font-semibold text-foreground">Eastern Trust <span className="text-primary">Bank</span></span>
+            </Link>
+            <nav className="hidden items-center gap-7 lg:flex" aria-label="Main navigation">
+              {links.map(([label, to]) => <Link key={to} to={to} className="text-sm text-muted-foreground transition-colors hover:text-primary" activeProps={{ className: "text-primary" }}>{label}</Link>)}
+            </nav>
+            <div className="hidden items-center gap-3 lg:flex">
+              {signedIn ? (
+                <Button asChild variant="outline" className="flex items-center gap-2">
                   <Link to="/dashboard">
                     <span className="relative flex size-5 shrink-0 overflow-hidden rounded-full border border-primary/40">
                       {userAvatar ? (
@@ -268,16 +246,43 @@ function RootComponent() {
                     Dashboard
                   </Link>
                 </Button>
-              </div>
-            ) : (
-              <div className="mt-4 flex gap-3">
-                <Button asChild variant="outline" className="flex-1"><Link to="/auth">Log in</Link></Button>
-                <Button asChild className="flex-1"><Link to="/signup">Open account</Link></Button>
-              </div>
-            )}
-          </nav>
-        )}
-      </header>
+              ) : (
+                <>
+                  <Button asChild variant="ghost"><Link to="/auth">Log in</Link></Button>
+                  <Button asChild><Link to="/signup">Open an account</Link></Button>
+                </>
+              )}
+            </div>
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X /> : <Menu />}</Button>
+          </div>
+          {menuOpen && (
+            <nav className="border-t border-border px-5 py-5 lg:hidden">
+              {links.map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)} className="block border-b border-border py-3 text-sm">{label}</Link>)}
+              {signedIn ? (
+                <div className="mt-4 flex gap-3">
+                  <Button asChild variant="outline" className="flex-1 flex items-center justify-center gap-2" onClick={() => setMenuOpen(false)}>
+                    <Link to="/dashboard">
+                      <span className="relative flex size-5 shrink-0 overflow-hidden rounded-full border border-primary/40">
+                        {userAvatar ? (
+                          <img src={userAvatar} alt="Profile" className="size-full object-cover" />
+                        ) : (
+                          <span className="flex size-full items-center justify-center bg-primary/10 text-[9px] font-semibold text-primary">ET</span>
+                        )}
+                      </span>
+                      Dashboard
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-4 flex gap-3">
+                  <Button asChild variant="outline" className="flex-1"><Link to="/auth">Log in</Link></Button>
+                  <Button asChild className="flex-1"><Link to="/signup">Open account</Link></Button>
+                </div>
+              )}
+            </nav>
+          )}
+        </header>
+      )}
       <Outlet />
     </QueryClientProvider>
   );

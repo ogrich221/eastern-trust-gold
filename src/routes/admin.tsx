@@ -41,6 +41,7 @@ import {
   ArrowUpRight,
   Camera,
   Edit3,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,7 @@ import {
   updateCustomerAvatar,
   updateCustomerContactInfo,
   postTransaction,
+  purgeTestrunUsers,
 } from "@/lib/admin.functions";
 import { TransactionForm, TransactionLedger, WireReview } from "@/components/admin-transactions";
 import { UserProfile } from "@/components/user-profile";
@@ -151,7 +153,7 @@ function AdminLogin() {
     setBusy(true);
     setError(null);
     try {
-      const r = await loginFn({ data: { username, password } });
+      const r = await loginFn({ data: { username: username.trim(), password: password.trim() } });
       if (!r.ok) setError(r.error);
       else await qc.invalidateQueries({ queryKey: ["admin-session"] });
     } catch (err) {
@@ -161,28 +163,79 @@ function AdminLogin() {
     }
   };
   return (
-    <main className="mx-auto max-w-md px-5 py-20">
-      <div className="flex size-12 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-primary">
-        <ShieldCheck className="size-7" />
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-16 overflow-hidden bg-slate-950 text-slate-100">
+      {/* Ambient glass background glow */}
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(217,119,6,0.15),transparent_50%),radial-gradient(circle_at_75%_75%,rgba(16,185,129,0.1),transparent_50%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:3.5rem_3.5rem]" />
+
+      <div className="relative w-full max-w-md">
+        {/* Luminous frosted glass panel */}
+        <div className="rounded-3xl border border-white/10 bg-slate-900/50 backdrop-blur-2xl p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.55)] sm:p-10 relative overflow-hidden">
+          {/* Subtle top edge specular gloss */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
+
+          <div className="flex flex-col items-center text-center">
+            <div className="flex size-14 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-400 shadow-lg shadow-amber-500/10">
+              <ShieldCheck className="size-8" />
+            </div>
+            <span className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-amber-400">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Authorized Staff Only
+            </span>
+            <h1 className="mt-3 font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              Admin &amp; Staff Portal
+            </h1>
+            <p className="mt-2 text-xs text-slate-400 leading-relaxed max-w-xs">
+              Sign in to manage customers, accounts, and monitor transactions.
+            </p>
+          </div>
+
+          <form onSubmit={submit} className="mt-8 space-y-4">
+            <div>
+              <Label htmlFor="au" className="text-xs font-medium text-slate-300">Admin Username</Label>
+              <Input
+                id="au"
+                className="mt-1.5 h-11 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500 focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/40"
+                autoComplete="username"
+                placeholder="admin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="ap" className="text-xs font-medium text-slate-300">Admin Password</Label>
+              <PasswordInput
+                id="ap"
+                className="mt-1.5 h-11 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500 focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/40"
+                autoComplete="current-password"
+                placeholder="••••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-center gap-2">
+                <AlertTriangle className="size-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="mt-2 w-full h-11 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 font-semibold text-slate-950 shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 active:scale-[0.99] transition-all"
+              disabled={busy || !username.trim() || !password.trim()}
+            >
+              {busy ? "Authenticating…" : "Sign In to Portal"}
+            </Button>
+
+            <div className="pt-2 text-center text-[11px] text-slate-400">
+              Default access: <strong className="font-mono text-slate-200">admin</strong> / <strong className="font-mono text-slate-200">EasternTrust2026!</strong>
+            </div>
+          </form>
+        </div>
       </div>
-      <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-primary">Authorized Personnel Only</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight">Admin & Staff Portal</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Sign in to manage customers, accounts, and monitor transactions.</p>
-      <form onSubmit={submit} className="mt-8 space-y-4 rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div>
-          <Label htmlFor="au">Admin Username</Label>
-          <Input id="au" className="mt-1" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
-        </div>
-        <div>
-          <Label htmlFor="ap">Admin Password</Label>
-          <PasswordInput id="ap" className="mt-1" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" className="w-full" disabled={busy || !username || !password}>
-          {busy ? "Authenticating…" : "Sign In to Portal"}
-        </Button>
-      </form>
-    </main>
+    </div>
   );
 }
 
@@ -230,10 +283,40 @@ function AdminPortal({ adminName }: { adminName: string }) {
   };
 
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended" | "admin" | "unconfirmed">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended" | "admin" | "unconfirmed" | "testrun">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [quickModalCustomer, setQuickModalCustomer] = useState<Customer | null>(null);
   const [quickModalOpen, setQuickModalOpen] = useState(false);
+
+  // Filter out any public homepage contact inquiries so the executive portal shows pure banking records
+  const staffAuditLogs = useMemo(() => {
+    return (audit.data ?? []).filter((r) => r.action !== "homepage_inquiry");
+  }, [audit.data]);
+
+  const isTestrunCustomer = (c: Customer) => {
+    const fn = (c.profile?.first_name || "").toLowerCase().trim();
+    const ln = (c.profile?.last_name || "").toLowerCase().trim();
+    const em = (c.email || "").toLowerCase().trim();
+    const fullName = `${fn} ${ln}`.trim();
+    return (
+      em.includes("@test.com") ||
+      em.includes("@example.com") ||
+      em.includes("@client.easterntrustbank.co") ||
+      em.includes("+test") ||
+      em.includes("testrun") ||
+      em.includes("demo") ||
+      em.includes("dummy") ||
+      em.includes("sample") ||
+      em.includes("fake") ||
+      fn.includes("test") ||
+      ln.includes("test") ||
+      fn.includes("demo") ||
+      ln.includes("demo") ||
+      fullName === "jane doe" ||
+      fullName === "john doe" ||
+      fullName === "client"
+    );
+  };
 
   // Compute live overview metrics
   const metrics = useMemo(() => {
@@ -278,6 +361,7 @@ function AdminPortal({ adminName }: { adminName: string }) {
       if (statusFilter === "suspended") return c.banned;
       if (statusFilter === "admin") return c.is_admin;
       if (statusFilter === "unconfirmed") return !c.confirmed;
+      if (statusFilter === "testrun") return isTestrunCustomer(c);
       return true;
     });
   }, [customers.data, q, statusFilter]);
@@ -286,30 +370,39 @@ function AdminPortal({ adminName }: { adminName: string }) {
   const emailOf = (id: string | null) => customers.data?.find((c) => c.id === id)?.email ?? id?.slice(0, 8) ?? "—";
 
   return (
-    <main className="py-10">
+    <main className="relative min-h-screen py-10 overflow-hidden bg-slate-950 text-slate-100">
+      {/* Ambient glass background glow */}
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(217,119,6,0.12),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(16,185,129,0.08),transparent_50%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem]" />
       <Toaster />
-      <div className="mx-auto max-w-7xl px-5 lg:px-8 space-y-8">
+      <div className="relative mx-auto max-w-7xl px-5 lg:px-8 space-y-8">
         {/* Top Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <ShieldCheck className="size-4" />
-              </span>
-              <p className="text-xs font-semibold uppercase tracking-widest text-primary">Staff Operations</p>
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-900/40 backdrop-blur-2xl p-6 shadow-2xl relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent" />
+          <div className="flex items-center gap-4">
+            <span className="flex size-14 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-400 shadow-lg shadow-amber-500/10">
+              <ShieldCheck className="size-7" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-400">Executive Administration</p>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Core Banking Live
+                </span>
+              </div>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-white md:text-3xl font-display">Treasury &amp; Operations Portal</h1>
             </div>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">Admin Dashboard</h1>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Logged in as</p>
-              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                {adminName} <Badge variant="outline" className="text-[10px] py-0">Admin</Badge>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:block text-right">
+              <p className="text-[11px] text-slate-400">Logged in officer</p>
+              <p className="text-sm font-semibold text-white flex items-center justify-end gap-1.5">
+                {adminName} <Badge variant="outline" className="text-[10px] py-0 border-amber-500/40 bg-amber-500/10 text-amber-300">Admin</Badge>
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={signOut}>
+            <Button variant="outline" size="sm" onClick={signOut} className="rounded-xl border-white/10 bg-slate-800/40 backdrop-blur hover:bg-white/10 text-xs">
               <LogOut className="mr-1.5 size-3.5" /> Sign Out
             </Button>
           </div>
@@ -317,86 +410,88 @@ function AdminPortal({ adminName }: { adminName: string }) {
 
         {/* Global Banking Metrics Ribbon */}
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center justify-between text-muted-foreground">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-xl relative overflow-hidden group hover:border-amber-500/40 transition-all duration-300">
+            <div className="flex items-center justify-between text-slate-400">
               <span className="text-xs font-semibold uppercase tracking-wider">Total Customer Deposits</span>
-              <Wallet className="size-4 text-primary" />
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <Wallet className="size-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-primary font-display">{money(metrics.totalDeposits)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Liquid Everyday Checking</p>
+            <p className="mt-3 text-2xl font-bold text-amber-400 font-display">{money(metrics.totalDeposits)}</p>
+            <p className="mt-1 text-xs text-slate-400">Liquid Everyday Checking</p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center justify-between text-muted-foreground">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-xl relative overflow-hidden group hover:border-amber-500/40 transition-all duration-300">
+            <div className="flex items-center justify-between text-slate-400">
               <span className="text-xs font-semibold uppercase tracking-wider">Active Credit Drawn</span>
-              <CreditCard className="size-4 text-amber-400" />
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <CreditCard className="size-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-foreground font-display">{money(metrics.totalCredit)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Gold Rewards Outstanding</p>
+            <p className="mt-3 text-2xl font-bold text-white font-display">{money(metrics.totalCredit)}</p>
+            <p className="mt-1 text-xs text-slate-400">Gold Rewards Outstanding</p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center justify-between text-muted-foreground">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-xl relative overflow-hidden group hover:border-amber-500/40 transition-all duration-300">
+            <div className="flex items-center justify-between text-slate-400">
               <span className="text-xs font-semibold uppercase tracking-wider">Registered Accounts</span>
-              <Users className="size-4 text-primary" />
+              <div className="p-2 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+                <Users className="size-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-foreground font-display">{metrics.totalCustomers}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{metrics.activeCustomers} active customers</p>
+            <p className="mt-3 text-2xl font-bold text-white font-display">{metrics.totalCustomers}</p>
+            <p className="mt-1 text-xs text-slate-400">{metrics.activeCustomers} active customers</p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center justify-between text-muted-foreground">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-xl relative overflow-hidden group hover:border-emerald-500/40 transition-all duration-300">
+            <div className="flex items-center justify-between text-slate-400">
               <span className="text-xs font-semibold uppercase tracking-wider">Security & Audit Status</span>
-              <CheckCircle2 className="size-4 text-emerald-400" />
+              <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <CheckCircle2 className="size-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-emerald-400 font-display">Compliant</p>
-            <p className="mt-1 text-xs text-muted-foreground">{audit.data?.length ?? 0} logged staff actions</p>
+            <p className="mt-3 text-2xl font-bold text-emerald-400 font-display">Compliant</p>
+            <p className="mt-1 text-xs text-slate-400">{staffAuditLogs.length} logged staff actions</p>
           </div>
         </section>
 
         {/* Top-Level Tabs */}
         <Tabs defaultValue="customers" className="w-full">
-          <div className="border-b border-border">
-            <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none bg-transparent p-0 pb-px">
+          <div>
+            <TabsList className="h-auto w-full justify-start gap-1.5 overflow-x-auto rounded-2xl bg-slate-900/50 backdrop-blur-xl border border-white/10 p-1.5 shadow-lg">
               <TabsTrigger
                 value="customers"
-                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+                className="rounded-xl border border-transparent px-4 py-2.5 text-xs font-semibold data-[state=active]:border-amber-500/40 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-300 data-[state=active]:shadow text-slate-300 hover:text-white hover:bg-white/5 transition-all"
               >
                 <Users className="mr-2 size-4" /> Customer Management
               </TabsTrigger>
               <TabsTrigger
-                value="inquiries"
-                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
-              >
-                <Mail className="mr-2 size-4" /> Homepage Inquiries
-              </TabsTrigger>
-              <TabsTrigger
                 value="transactions"
-                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+                className="rounded-xl border border-transparent px-4 py-2.5 text-xs font-semibold data-[state=active]:border-amber-500/40 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-300 data-[state=active]:shadow text-slate-300 hover:text-white hover:bg-white/5 transition-all"
               >
                 <Clock className="mr-2 size-4" /> Transaction Monitoring
               </TabsTrigger>
               <TabsTrigger
                 value="reports"
-                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+                className="rounded-xl border border-transparent px-4 py-2.5 text-xs font-semibold data-[state=active]:border-amber-500/40 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-300 data-[state=active]:shadow text-slate-300 hover:text-white hover:bg-white/5 transition-all"
               >
                 <FileSpreadsheet className="mr-2 size-4" /> Reports & Analytics
               </TabsTrigger>
               <TabsTrigger
                 value="permissions"
-                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+                className="rounded-xl border border-transparent px-4 py-2.5 text-xs font-semibold data-[state=active]:border-amber-500/40 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-300 data-[state=active]:shadow text-slate-300 hover:text-white hover:bg-white/5 transition-all"
               >
                 <Sliders className="mr-2 size-4" /> Role Permissions
               </TabsTrigger>
               <TabsTrigger
                 value="audit"
-                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+                className="rounded-xl border border-transparent px-4 py-2.5 text-xs font-semibold data-[state=active]:border-amber-500/40 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-300 data-[state=active]:shadow text-slate-300 hover:text-white hover:bg-white/5 transition-all"
               >
                 <ShieldCheck className="mr-2 size-4" /> Activity Log
               </TabsTrigger>
               <TabsTrigger
                 value="security"
-                className="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-card data-[state=active]:text-foreground"
+                className="rounded-xl border border-transparent px-4 py-2.5 text-xs font-semibold data-[state=active]:border-amber-500/40 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-300 data-[state=active]:shadow text-slate-300 hover:text-white hover:bg-white/5 transition-all"
               >
                 <Lock className="mr-2 size-4" /> Security Settings
               </TabsTrigger>
@@ -443,41 +538,49 @@ function AdminPortal({ adminName }: { adminName: string }) {
 
             <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
               {/* Customer Directory Sidebar */}
-              <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col h-[750px]">
-                <div className="border-b border-border p-3 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Customers Directory</h3>
-                  <NewCustomerDialog />
+              <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-xl overflow-hidden flex flex-col h-[750px]">
+                <div className="border-b border-white/10 p-3.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-white">Customers Directory</h3>
+                    <Badge variant="outline" className="border-white/10 text-[10px] text-slate-300">
+                      {filtered.length}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <PurgeTestrunDialog onPurged={() => qcRoot.invalidateQueries({ queryKey: ["admin-customers"] })} />
+                    <NewCustomerDialog />
+                  </div>
                 </div>
 
-                <div className="p-3 border-b border-border space-y-2">
+                <div className="p-3 border-b border-white/10 space-y-2.5">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                     <Input
                       value={q}
                       onChange={(e) => setQ(e.target.value)}
                       placeholder="Search name, email, phone..."
-                      className="pl-9 h-9 text-xs"
+                      className="pl-9 h-9 text-xs rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500 focus:border-amber-500/50"
                     />
                   </div>
 
                   <div className="flex flex-wrap gap-1">
-                    {(["all", "active", "suspended", "admin", "unconfirmed"] as const).map((filter) => (
+                    {(["all", "active", "suspended", "admin", "unconfirmed", "testrun"] as const).map((filter) => (
                       <button
                         key={filter}
                         onClick={() => setStatusFilter(filter)}
-                        className={`text-[11px] px-2.5 py-1 rounded-md transition-colors capitalize ${
+                        className={`text-[11px] px-2.5 py-1 rounded-lg transition-all capitalize ${
                           statusFilter === filter
-                            ? "bg-primary text-primary-foreground font-medium"
-                            : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium"
+                            : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
                         }`}
                       >
-                        {filter}
+                        {filter === "testrun" ? "Test Accounts" : filter}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <ul className="flex-1 overflow-y-auto divide-y divide-border">
+                <ul className="flex-1 overflow-y-auto divide-y divide-white/5">
                   {customers.isLoading && <li className="p-4 text-sm text-muted-foreground">Loading customers…</li>}
                   {customers.error && <li className="p-4 text-sm text-destructive">{errMsg(customers.error)}</li>}
                   {filtered.map((c) => {
@@ -500,35 +603,35 @@ function AdminPortal({ adminName }: { adminName: string }) {
                               setSelectedId(c.id);
                             }
                           }}
-                          className={`w-full p-4 text-left transition-colors hover:bg-accent/60 cursor-pointer ${
-                            isSelected ? "bg-accent border-l-4 border-primary" : ""
+                          className={`w-full p-4 text-left transition-all cursor-pointer ${
+                            isSelected ? "bg-amber-500/15 border-l-4 border-amber-500 text-white" : "hover:bg-white/5 text-slate-200"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <Avatar className="size-9 border border-border shrink-0">
+                              <Avatar className="size-9 border border-white/10 shrink-0">
                                 {c.avatar_url ? (
                                   <AvatarImage src={c.avatar_url} alt={fullName || c.email} className="object-cover" />
                                 ) : null}
-                                <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                                <AvatarFallback className="bg-amber-500/10 text-xs font-semibold text-amber-300">
                                   {(fullName ? fullName.slice(0, 2) : c.email.slice(0, 2)).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-sm text-foreground truncate">
+                                <p className="font-semibold text-sm text-white truncate">
                                   {fullName || c.email}
                                 </p>
-                                <p className="truncate text-xs text-muted-foreground">{c.email}</p>
+                                <p className="truncate text-xs text-slate-400">{c.email}</p>
                                 {c.profile?.phone && (
-                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                                    <Phone className="size-2.5 shrink-0 text-muted-foreground" /> {c.profile.phone}
+                                  <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                    <Phone className="size-2.5 shrink-0 text-slate-500" /> {c.profile.phone}
                                   </p>
                                 )}
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-xs font-bold text-foreground">{money(totalBal)}</p>
-                              <p className="text-[10px] text-muted-foreground">{c.accounts.length} accts</p>
+                              <p className="text-xs font-bold text-white">{money(totalBal)}</p>
+                              <p className="text-[10px] text-slate-400">{c.accounts.length} accts</p>
                             </div>
                           </div>
 
@@ -537,22 +640,27 @@ function AdminPortal({ adminName }: { adminName: string }) {
                             {c.accounts.map((a) => (
                               <span
                                 key={a.id}
-                                className="bg-background/80 border border-border/70 px-1.5 py-0.5 rounded text-[10px] font-mono text-muted-foreground"
+                                className="bg-white/5 border border-white/10 px-2 py-0.5 rounded-md text-[10px] font-mono text-slate-300"
                               >
-                                {a.account_type}: <strong className="text-foreground">{money(a.available_balance)}</strong>
+                                {a.account_type}: <strong className="text-white">{money(a.available_balance)}</strong>
                               </span>
                             ))}
                           </div>
 
-                          <div className="mt-2.5 flex items-center justify-between gap-1.5 border-t border-border/40 pt-2">
+                          <div className="mt-2.5 flex items-center justify-between gap-1.5 border-t border-white/5 pt-2">
                             <div className="flex items-center gap-1 flex-wrap">
-                              {c.is_admin && <Badge variant="outline" className="text-[10px] py-0">Admin</Badge>}
+                              {c.is_admin && <Badge variant="outline" className="text-[10px] py-0 border-amber-500/40 bg-amber-500/10 text-amber-300">Admin</Badge>}
+                              {isTestrunCustomer(c) && (
+                                <Badge variant="outline" className="text-[10px] py-0 border-rose-500/40 bg-rose-500/10 text-rose-300">
+                                  Testrun
+                                </Badge>
+                              )}
                               {c.banned ? (
                                 <Badge variant="destructive" className="text-[10px] py-0">Suspended</Badge>
                               ) : (
                                 <Badge variant="outline" className="text-[10px] py-0 text-emerald-400 border-emerald-500/40">Active</Badge>
                               )}
-                              {!c.confirmed && <Badge variant="secondary" className="text-[10px] py-0">Unconfirmed</Badge>}
+                              {!c.confirmed && <Badge variant="secondary" className="text-[10px] py-0 text-slate-400">Unconfirmed</Badge>}
                             </div>
                             <Button
                               type="button"
@@ -573,7 +681,7 @@ function AdminPortal({ adminName }: { adminName: string }) {
                     );
                   })}
                   {customers.data && filtered.length === 0 && (
-                    <li className="p-8 text-center text-sm text-muted-foreground">No matching customers found.</li>
+                    <li className="p-8 text-center text-sm text-slate-400">No matching customers found.</li>
                   )}
                 </ul>
               </div>
@@ -583,21 +691,16 @@ function AdminPortal({ adminName }: { adminName: string }) {
                 {selected ? (
                   <CustomerDetail key={selected.id} c={selected} onDeleted={() => setSelectedId(null)} />
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground">
-                    <Users className="size-12 stroke-[1.5] text-muted-foreground/60" />
-                    <h3 className="mt-4 text-lg font-semibold text-foreground">Select a Customer</h3>
-                    <p className="mt-1 text-sm max-w-sm">
+                  <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-slate-900/20 backdrop-blur-md p-12 text-center text-slate-400">
+                    <Users className="size-12 stroke-[1.5] text-slate-600" />
+                    <h3 className="mt-4 text-lg font-semibold text-white">Select a Customer</h3>
+                    <p className="mt-1 text-sm max-w-sm text-slate-400">
                       Choose an account from the directory to inspect balances, adjust limits, monitor activity, or launch an authorized support session.
                     </p>
                   </div>
                 )}
               </div>
             </div>
-          </TabsContent>
-
-          {/* TAB: HOMEPAGE INQUIRIES */}
-          <TabsContent value="inquiries" className="mt-6">
-            <HomepageInquiries auditLogs={audit.data ?? []} />
           </TabsContent>
 
           {/* TAB 2: TRANSACTION MONITORING */}
@@ -610,24 +713,24 @@ function AdminPortal({ adminName }: { adminName: string }) {
           <TabsContent value="reports" className="mt-6">
             <AdminReports
               customers={customers.data ?? []}
-              auditLogs={audit.data ?? []}
+              auditLogs={staffAuditLogs}
               emailOf={(id) => emailOf(id)}
             />
           </TabsContent>
 
           {/* TAB 4: PERMISSIONS MATRIX */}
           <TabsContent value="permissions" className="mt-6">
-            <div className="rounded-xl border border-border bg-card p-6 space-y-6">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight">Staff Roles & Permissions Matrix</h2>
-                <p className="text-xs text-muted-foreground">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-xl p-6 space-y-6">
+              <div className="border-b border-white/10 pb-4">
+                <h2 className="text-xl font-bold tracking-tight text-white font-display">Staff Roles &amp; Permissions Matrix</h2>
+                <p className="text-xs text-slate-400">
                   Role-based security controls governing staff access across accounts, transfers, and customer details.
                 </p>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b border-border text-xs text-muted-foreground">
+                  <thead className="border-b border-white/10 text-xs text-slate-400">
                     <tr>
                       <th className="py-3 px-4">Role Title</th>
                       <th className="py-3 px-4">View Balances</th>
@@ -637,10 +740,10 @@ function AdminPortal({ adminName }: { adminName: string }) {
                       <th className="py-3 px-4">Delete Accounts</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
-                    <tr>
-                      <td className="py-3.5 px-4 font-semibold text-foreground flex items-center gap-2">
-                        <ShieldCheck className="size-4 text-primary" /> Super Admin
+                  <tbody className="divide-y divide-white/5 text-slate-200">
+                    <tr className="hover:bg-white/5 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
+                        <ShieldCheck className="size-4 text-amber-400" /> Super Admin
                       </td>
                       <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Access</td>
                       <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Access</td>
@@ -648,25 +751,25 @@ function AdminPortal({ adminName }: { adminName: string }) {
                       <td className="py-3.5 px-4 text-emerald-400 font-medium">Authorized Audit</td>
                       <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Control</td>
                     </tr>
-                    <tr>
-                      <td className="py-3.5 px-4 font-semibold text-foreground flex items-center gap-2">
-                        <Users className="size-4 text-blue-400" /> Support Specialist
+                    <tr className="hover:bg-white/5 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
+                        <Users className="size-4 text-sky-400" /> Support Specialist
                       </td>
                       <td className="py-3.5 px-4 text-emerald-400 font-medium">Full Access</td>
-                      <td className="py-3.5 px-4 text-muted-foreground">Review Only</td>
-                      <td className="py-3.5 px-4 text-muted-foreground">Approval Needed</td>
+                      <td className="py-3.5 px-4 text-slate-400">Review Only</td>
+                      <td className="py-3.5 px-4 text-slate-400">Approval Needed</td>
                       <td className="py-3.5 px-4 text-emerald-400 font-medium">Authorized Audit</td>
-                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
+                      <td className="py-3.5 px-4 text-rose-400 font-medium">Denied</td>
                     </tr>
-                    <tr>
-                      <td className="py-3.5 px-4 font-semibold text-foreground flex items-center gap-2">
+                    <tr className="hover:bg-white/5 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white flex items-center gap-2">
                         <Lock className="size-4 text-amber-400" /> Compliance Auditor
                       </td>
                       <td className="py-3.5 px-4 text-emerald-400 font-medium">Read Only</td>
-                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
-                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
-                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
-                      <td className="py-3.5 px-4 text-destructive font-medium">Denied</td>
+                      <td className="py-3.5 px-4 text-rose-400 font-medium">Denied</td>
+                      <td className="py-3.5 px-4 text-rose-400 font-medium">Denied</td>
+                      <td className="py-3.5 px-4 text-rose-400 font-medium">Denied</td>
+                      <td className="py-3.5 px-4 text-rose-400 font-medium">Denied</td>
                     </tr>
                   </tbody>
                 </table>
@@ -676,15 +779,18 @@ function AdminPortal({ adminName }: { adminName: string }) {
 
           {/* TAB 5: AUDIT LOG */}
           <TabsContent value="audit" className="mt-6">
-            <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-              <div className="p-4 border-b border-border flex items-center justify-between">
+            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-xl overflow-hidden">
+              <div className="p-5 border-b border-white/10 flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-semibold">Audit Activity Log</h3>
-                  <p className="text-xs text-muted-foreground">Immutable trail of every administrative transaction and support login.</p>
+                  <h3 className="text-base font-semibold text-white font-display">Administrative Activity Log</h3>
+                  <p className="text-xs text-slate-400">Immutable trail of every internal transaction, support impersonation, and staff adjustment.</p>
                 </div>
+                <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-xs font-mono">
+                  {staffAuditLogs.length} logged events
+                </Badge>
               </div>
               <table className="w-full text-sm">
-                <thead className="border-b border-border text-left text-muted-foreground text-xs">
+                <thead className="border-b border-white/10 text-left text-slate-400 text-xs">
                   <tr>
                     <th className="p-3.5">Timestamp</th>
                     <th className="p-3.5">Admin</th>
@@ -693,8 +799,8 @@ function AdminPortal({ adminName }: { adminName: string }) {
                     <th className="p-3.5">Details / Support Reason</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
-                  {(audit.data ?? []).map((r) => {
+                <tbody className="divide-y divide-white/5 text-slate-200">
+                  {staffAuditLogs.map((r) => {
                     let admin = "—";
                     let reason = "";
                     try {
@@ -703,20 +809,20 @@ function AdminPortal({ adminName }: { adminName: string }) {
                       reason = d.reason ?? "";
                     } catch {}
                     return (
-                      <tr key={r.id} className="hover:bg-muted/30">
-                        <td className="p-3.5 whitespace-nowrap text-xs text-muted-foreground">
+                      <tr key={r.id} className="hover:bg-white/5 transition-colors">
+                        <td className="p-3.5 whitespace-nowrap text-xs text-slate-400 font-mono">
                           {new Date(r.created_at).toLocaleString()}
                         </td>
-                        <td className="p-3.5 font-medium">{admin}</td>
+                        <td className="p-3.5 font-medium text-white">{admin}</td>
                         <td className="p-3.5">
-                          <Badge variant="outline" className="text-xs capitalize">
+                          <Badge variant="outline" className="text-xs border-amber-500/40 bg-amber-500/10 text-amber-300 capitalize">
                             {r.action.replace(/_/g, " ")}
                           </Badge>
                         </td>
-                        <td className="p-3.5 text-xs">{r.target_user_id ? emailOf(r.target_user_id) : "—"}</td>
-                        <td className="max-w-md p-3.5 text-xs text-muted-foreground">
+                        <td className="p-3.5 text-xs text-slate-300">{r.target_user_id ? emailOf(r.target_user_id) : "—"}</td>
+                        <td className="max-w-md p-3.5 text-xs text-slate-400">
                           {reason ? (
-                            <span className="font-semibold text-foreground">Reason: {reason}</span>
+                            <span className="font-semibold text-white">Reason: {reason}</span>
                           ) : r.details === "{}" ? (
                             "—"
                           ) : (
@@ -726,10 +832,10 @@ function AdminPortal({ adminName }: { adminName: string }) {
                       </tr>
                     );
                   })}
-                  {audit.data?.length === 0 && (
+                  {staffAuditLogs.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
-                        No activity recorded yet.
+                      <td colSpan={5} className="p-8 text-center text-sm text-slate-400">
+                        No administrative staff activity recorded yet.
                       </td>
                     </tr>
                   )}
@@ -741,53 +847,53 @@ function AdminPortal({ adminName }: { adminName: string }) {
           {/* TAB 6: SECURITY SETTINGS */}
           <TabsContent value="security" className="mt-6">
             <div className="grid gap-6 md:grid-cols-2">
-              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-                <h3 className="text-base font-semibold">Admin Credentials & Environment</h3>
-                <p className="text-xs text-muted-foreground">
-                  Your staff credentials are authenticated securely via server functions.
+              <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-xl p-6 space-y-4">
+                <h3 className="text-base font-semibold text-white font-display">Admin Credentials &amp; Environment</h3>
+                <p className="text-xs text-slate-400">
+                  Your staff credentials are authenticated securely via cryptographic HMAC session tokens.
                 </p>
 
-                <div className="rounded-lg bg-background p-4 border border-border space-y-2 text-xs">
+                <div className="rounded-xl bg-slate-950/60 backdrop-blur-md p-4 border border-white/10 space-y-2.5 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Active Username:</span>
-                    <strong className="text-foreground font-mono">{adminName}</strong>
+                    <span className="text-slate-400">Active Officer:</span>
+                    <strong className="text-white font-mono">{adminName}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Session Expiration:</span>
-                    <strong className="text-foreground">8 Hours (Strict HttpOnly Cookie)</strong>
+                    <span className="text-slate-400">Session Expiration:</span>
+                    <strong className="text-emerald-400">8 Hours (Strict HttpOnly Cookie)</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Authentication Method:</span>
-                    <strong className="text-foreground">HMAC-SHA256 Tokenization</strong>
+                    <span className="text-slate-400">Authentication Method:</span>
+                    <strong className="text-amber-300">HMAC-SHA256 Tokenization</strong>
                   </div>
                 </div>
 
                 <div className="pt-2">
-                  <p className="text-xs font-semibold text-foreground mb-1">To change Admin Credentials:</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Set <code className="bg-muted px-1.5 py-0.5 rounded text-primary">ADMIN_USERNAME</code> and{" "}
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-primary">ADMIN_PASSWORD</code> in your Netlify
+                  <p className="text-xs font-semibold text-white mb-1">To change Admin Credentials:</p>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Set <code className="bg-white/10 px-1.5 py-0.5 rounded text-amber-300 font-mono">ADMIN_USERNAME</code> and{" "}
+                    <code className="bg-white/10 px-1.5 py-0.5 rounded text-amber-300 font-mono">ADMIN_PASSWORD</code> in your Netlify
                     dashboard under <strong>Project configuration &gt; Environment variables</strong>.
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-                <h3 className="text-base font-semibold">Compliance & Audit Mandates</h3>
-                <p className="text-xs text-muted-foreground">
+              <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-xl p-6 space-y-4">
+                <h3 className="text-base font-semibold text-white font-display">Compliance &amp; Audit Mandates</h3>
+                <p className="text-xs text-slate-400">
                   Standard Operating Procedures (SOP) for customer support impersonation.
                 </p>
 
-                <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
-                  <div className="flex gap-2">
+                <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
+                  <div className="flex gap-2.5">
                     <CheckCircle2 className="size-4 text-emerald-400 shrink-0 mt-0.5" />
                     <span>Every "Log in as user" action requires an approved support ticket or reason.</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2.5">
                     <CheckCircle2 className="size-4 text-emerald-400 shrink-0 mt-0.5" />
                     <span>All account modifications and balance overrides are permanently written to the ledger.</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2.5">
                     <CheckCircle2 className="size-4 text-emerald-400 shrink-0 mt-0.5" />
                     <span>Customer security answers remain encrypted with one-way hashes and cannot be read by staff.</span>
                   </div>
@@ -875,7 +981,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   return (
     <div className="space-y-6">
       {/* Customer Header Box */}
-      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="relative group shrink-0">
@@ -898,18 +1004,18 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold tracking-tight">
+                <h2 className="text-2xl font-bold tracking-tight text-white">
                   {fullName || c.email}
                 </h2>
-                {c.is_admin && <Badge>Admin</Badge>}
+                {c.is_admin && <Badge className="border-amber-500/40 bg-amber-500/10 text-amber-300">Admin</Badge>}
                 {c.banned ? (
                   <Badge variant="destructive">Suspended</Badge>
                 ) : (
                   <Badge variant="outline" className="border-emerald-500/40 text-emerald-400">Active</Badge>
                 )}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {c.email} · ID: <span className="font-mono">{c.id.slice(0, 8)}</span> · {c.confirmed ? "Email verified" : "Unverified"}
+              <p className="mt-1 text-xs text-slate-400">
+                {c.email} · ID: <span className="font-mono text-slate-300">{c.id.slice(0, 8)}</span> · {c.confirmed ? "Email verified" : "Unverified"}
               </p>
             </div>
           </div>
@@ -922,19 +1028,19 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             >
               <TrendingUp className="mr-1.5 size-3.5" /> Credit / Debit
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setContactModalOpen(true)} className="text-xs">
+            <Button variant="outline" size="sm" onClick={() => setContactModalOpen(true)} className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200">
               <FileText className="mr-1.5 size-3.5" /> Edit Contact Info
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setAvatarModalOpen(true)} className="text-xs">
+            <Button variant="outline" size="sm" onClick={() => setAvatarModalOpen(true)} className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200">
               <Camera className="mr-1.5 size-3.5" /> Photo
             </Button>
-            <Button onClick={() => setImpersonateOpen(true)} className="text-xs">
+            <Button onClick={() => setImpersonateOpen(true)} className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-medium">
               <LogIn className="mr-1.5 size-3.5" /> Log in as user
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="text-xs"
+              className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
               disabled={signOutM.isPending}
               onClick={() => {
                 if (window.confirm(`Sign ${c.email} out of every device?`)) signOutM.mutate({ userId: c.id });
@@ -942,7 +1048,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             >
               <LogOut className="mr-1.5 size-3.5" /> {signOutM.isPending ? "Signing out..." : "Sign out customer"}
             </Button>
-            <Button variant="outline" size="sm" onClick={openView} className="text-xs">
+            <Button variant="outline" size="sm" onClick={openView} className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200">
               <Eye className="mr-1.5 size-3.5" /> View Profile
             </Button>
             <Button
@@ -950,7 +1056,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               size="sm"
               disabled={suspendM.isPending}
               onClick={() => suspendM.mutate({ userId: c.id, suspended: !c.banned })}
-              className="text-xs"
+              className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
             >
               {c.banned ? <><UserCheck className="mr-1.5 size-3.5" /> Reactivate</> : <><UserX className="mr-1.5 size-3.5" /> Suspend</>}
             </Button>
@@ -959,10 +1065,42 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               size="sm"
               disabled={adminM.isPending}
               onClick={() => adminM.mutate({ userId: c.id, isAdmin: !c.is_admin })}
-              className="text-xs"
+              className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
             >
               <ShieldCheck className="mr-1.5 size-3.5" /> {c.is_admin ? "Remove Admin" : "Make Admin"}
             </Button>
+
+            {/* Direct Quick Delete Customer */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs rounded-xl border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+                >
+                  <Trash2 className="mr-1.5 size-3.5 text-rose-400" /> Delete User
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-rose-400 flex items-center gap-2">
+                    <Trash2 className="size-5" /> Delete {fullName || c.email}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs text-slate-300 leading-relaxed">
+                    Are you sure you want to permanently delete this customer? This will remove all their bank accounts, profiles, transactions, and authentication credentials immediately.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs"
+                    onClick={() => deleteM.mutate({ userId: c.id })}
+                  >
+                    {deleteM.isPending ? "Deleting..." : "Permanently Delete Customer"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
@@ -989,23 +1127,23 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
 
       {/* Detail Sub Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="bg-card border border-border flex-wrap h-auto p-1">
-          <TabsTrigger value="overview">
+        <TabsList className="bg-slate-900/50 backdrop-blur-xl border border-white/10 flex-wrap h-auto p-1.5 rounded-2xl gap-1.5">
+          <TabsTrigger value="overview" className="rounded-xl text-xs font-semibold data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-200 data-[state=active]:border data-[state=active]:border-amber-500/40 text-slate-300 transition-all">
             <User className="mr-1.5 size-3.5" /> Full Dossier
           </TabsTrigger>
-          <TabsTrigger value="accounts">
+          <TabsTrigger value="accounts" className="rounded-xl text-xs font-semibold data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-200 data-[state=active]:border data-[state=active]:border-amber-500/40 text-slate-300 transition-all">
             <Wallet className="mr-1.5 size-3.5" /> Accounts &amp; Balances ({c.accounts.length})
           </TabsTrigger>
-          <TabsTrigger value="transactions">
+          <TabsTrigger value="transactions" className="rounded-xl text-xs font-semibold data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-200 data-[state=active]:border data-[state=active]:border-amber-500/40 text-slate-300 transition-all">
             <History className="mr-1.5 size-3.5" /> Transaction Ledger
           </TabsTrigger>
-          <TabsTrigger value="profile">
+          <TabsTrigger value="profile" className="rounded-xl text-xs font-semibold data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-200 data-[state=active]:border data-[state=active]:border-amber-500/40 text-slate-300 transition-all">
             <FileText className="mr-1.5 size-3.5" /> Contact Information
           </TabsTrigger>
-          <TabsTrigger value="security">
+          <TabsTrigger value="security" className="rounded-xl text-xs font-semibold data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-200 data-[state=active]:border data-[state=active]:border-amber-500/40 text-slate-300 transition-all">
             <Lock className="mr-1.5 size-3.5" /> Security &amp; Login
           </TabsTrigger>
-          <TabsTrigger value="danger" className="text-destructive">
+          <TabsTrigger value="danger" className="rounded-xl text-xs font-semibold data-[state=active]:bg-rose-500/20 data-[state=active]:text-rose-200 data-[state=active]:border data-[state=active]:border-rose-500/40 text-rose-300 transition-all">
             <AlertTriangle className="mr-1.5 size-3.5" /> Danger Zone
           </TabsTrigger>
         </TabsList>
@@ -1014,43 +1152,43 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
         <TabsContent value="overview" className="mt-4 space-y-6">
           {/* Quick Metrics Strip */}
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Liquid Deposits</span>
-              <p className="mt-1 text-2xl font-bold font-display text-primary">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-lg">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Liquid Deposits</span>
+              <p className="mt-1 text-2xl font-bold font-display text-amber-400">
                 {money(c.accounts.filter(a => a.account_type === 'checking').reduce((s, a) => s + (a.available_balance || 0), 0))}
               </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Checking available</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Checking available</p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Active Credit Line</span>
-              <p className="mt-1 text-2xl font-bold font-display text-amber-400">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-lg">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Active Credit Line</span>
+              <p className="mt-1 text-2xl font-bold font-display text-white">
                 {money(c.accounts.filter(a => a.account_type === 'credit').reduce((s, a) => s + (a.current_balance || 0), 0))}
               </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Card balance outstanding</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Card balance outstanding</p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Accounts Linked</span>
-              <p className="mt-1 text-2xl font-bold font-display text-foreground">{c.accounts.length}</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Active banking services</p>
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-lg">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Accounts Linked</span>
+              <p className="mt-1 text-2xl font-bold font-display text-white">{c.accounts.length}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Active banking services</p>
             </div>
           </div>
 
           {/* Personal Identification & Contact Card */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <User className="size-4 text-primary" /> Customer Identity &amp; Contact Details
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2 text-white font-display">
+                <User className="size-4 text-amber-400" /> Customer Identity &amp; Contact Details
               </h3>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setContactModalOpen(true)}
-                  className="text-xs h-7"
+                  className="text-xs h-7 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
                 >
                   <Edit3 className="mr-1 size-3" /> Edit Contact Info
                 </Button>
-                <Badge variant="outline" className="text-xs font-mono">
+                <Badge variant="outline" className="text-xs font-mono border-white/10 text-slate-300">
                   {c.is_admin ? "Administrator" : "Standard Client"}
                 </Badge>
               </div>
@@ -1058,17 +1196,17 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
 
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 text-xs">
               <div className="flex items-center gap-3">
-                <Avatar className="size-11 border border-border shrink-0">
+                <Avatar className="size-11 border border-white/10 shrink-0">
                   {c.avatar_url ? (
                     <AvatarImage src={c.avatar_url} alt={fullName || c.email} className="object-cover" />
                   ) : null}
-                  <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                  <AvatarFallback className="bg-amber-500/10 text-xs font-semibold text-amber-300">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-muted-foreground">Full Legal Name</p>
-                  <p className="mt-0.5 font-semibold text-sm text-foreground">
+                  <p className="text-slate-400">Full Legal Name</p>
+                  <p className="mt-0.5 font-semibold text-sm text-white">
                     {fullName || "Not Set"}
                   </p>
                 </div>
@@ -1140,47 +1278,47 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           </div>
 
           {/* All Accounts Deep Breakdown */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <Wallet className="size-4 text-primary" /> Active Banking &amp; Card Accounts
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2 text-white">
+                <Wallet className="size-4 text-amber-400" /> Active Banking &amp; Card Accounts
               </h3>
-              <span className="text-xs text-muted-foreground">Routing Number: <strong className="text-foreground font-mono">021000089</strong></span>
+              <span className="text-xs text-slate-400">Routing Number: <strong className="text-white font-mono">021000089</strong></span>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               {c.accounts.map((a) => (
-                <div key={a.id} className="rounded-lg border border-border/80 bg-background/50 p-4 space-y-3">
+                <div key={a.id} className="rounded-xl border border-white/10 bg-slate-950/60 backdrop-blur-md p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                         {a.account_type} Account
                       </span>
-                      <h4 className="font-semibold text-sm text-foreground">{a.name}</h4>
+                      <h4 className="font-semibold text-sm text-white">{a.name}</h4>
                     </div>
-                    <Badge variant="outline" className="font-mono text-xs">
+                    <Badge variant="outline" className="font-mono text-xs border-white/10 text-slate-300">
                       •••• {a.last_four}
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40 text-xs">
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-xs">
                     <div>
-                      <p className="text-muted-foreground text-[11px]">Available Balance</p>
-                      <p className="font-bold text-sm text-primary font-display">{money(a.available_balance)}</p>
+                      <p className="text-slate-400 text-[11px]">Available Balance</p>
+                      <p className="font-bold text-sm text-amber-400 font-display">{money(a.available_balance)}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-[11px]">Current Balance</p>
-                      <p className="font-bold text-sm text-foreground font-display">{money(a.current_balance)}</p>
+                      <p className="text-slate-400 text-[11px]">Current Balance</p>
+                      <p className="font-bold text-sm text-white font-display">{money(a.current_balance)}</p>
                     </div>
                     {a.credit_limit !== null && (
                       <div>
-                        <p className="text-muted-foreground text-[11px]">Credit Limit</p>
-                        <p className="font-medium text-xs text-foreground font-mono">{money(a.credit_limit)}</p>
+                        <p className="text-slate-400 text-[11px]">Credit Limit</p>
+                        <p className="font-medium text-xs text-slate-300 font-mono">{money(a.credit_limit)}</p>
                       </div>
                     )}
                     <div>
-                      <p className="text-muted-foreground text-[11px]">Overdraft Permitted</p>
-                      <p className="font-medium text-xs text-foreground">{a.allow_overdraft ? "Yes" : "No"}</p>
+                      <p className="text-slate-400 text-[11px]">Overdraft Permitted</p>
+                      <p className="font-medium text-xs text-slate-300">{a.allow_overdraft ? "Yes" : "No"}</p>
                     </div>
                   </div>
                 </div>
@@ -1189,19 +1327,19 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           </div>
 
           {/* Security & Verification Credentials */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2 border-b border-border pb-3">
-              <Shield className="size-4 text-primary" /> Security &amp; Compliance Details
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl space-y-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2 border-b border-white/10 pb-3 text-white">
+              <Shield className="size-4 text-amber-400" /> Security &amp; Compliance Details
             </h3>
             <div className="grid gap-3 sm:grid-cols-2 text-xs">
-              <div className="rounded-lg border border-border p-3 bg-background/50">
-                <p className="font-semibold text-foreground text-[11px]">Security Question 1</p>
-                <p className="mt-1 text-muted-foreground">{c.profile?.security_question_one || "What was the name of your first pet?"}</p>
+              <div className="rounded-xl border border-white/10 p-3.5 bg-slate-950/60 backdrop-blur-md">
+                <p className="font-semibold text-white text-[11px]">Security Question 1</p>
+                <p className="mt-1 text-slate-400">{c.profile?.security_question_one || "What was the name of your first pet?"}</p>
                 <p className="mt-2 text-[10px] text-emerald-400 font-mono">✓ Cryptographic SHA-256 Hash Configured</p>
               </div>
-              <div className="rounded-lg border border-border p-3 bg-background/50">
-                <p className="font-semibold text-foreground text-[11px]">Security Question 2</p>
-                <p className="mt-1 text-muted-foreground">{c.profile?.security_question_two || "In what city were you born?"}</p>
+              <div className="rounded-xl border border-white/10 p-3.5 bg-slate-950/60 backdrop-blur-md">
+                <p className="font-semibold text-white text-[11px]">Security Question 2</p>
+                <p className="mt-1 text-slate-400">{c.profile?.security_question_two || "In what city were you born?"}</p>
                 <p className="mt-2 text-[10px] text-emerald-400 font-mono">✓ Cryptographic SHA-256 Hash Configured</p>
               </div>
             </div>
@@ -1209,24 +1347,23 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
         </TabsContent>
 
         {/* TAB 2: ACCOUNTS */}
-        {/* TAB: ACCOUNTS */}
         <TabsContent value="accounts" className="mt-4 space-y-4">
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
               <div>
-                <h3 className="text-base font-semibold">Customer Accounts</h3>
-                <p className="text-xs text-muted-foreground">Manage account parameters or immediately credit/debit liquid funds.</p>
+                <h3 className="text-base font-semibold text-white font-display">Customer Accounts</h3>
+                <p className="text-xs text-slate-400">Manage account parameters or immediately credit/debit liquid funds.</p>
               </div>
               <Button
                 size="sm"
                 onClick={() => setQuickCreditDebitOpen(true)}
-                className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                className="text-xs rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
               >
                 <TrendingUp className="mr-1.5 size-3.5" /> Credit / Debit
               </Button>
             </div>
             <div className="space-y-4">
-              {c.accounts.length === 0 && <p className="text-sm text-muted-foreground">No accounts configured.</p>}
+              {c.accounts.length === 0 && <p className="text-sm text-slate-400">No accounts configured.</p>}
               {c.accounts.map((a) => (
                 <AccountEditor key={a.id} a={a} />
               ))}
@@ -1239,13 +1376,13 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
         <TabsContent value="transactions" className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold">Transaction Ledger</h3>
-              <p className="text-xs text-muted-foreground">Audited history of credits, debits, wires, and adjustments.</p>
+              <h3 className="text-base font-semibold text-white font-display">Customer Transaction Ledger</h3>
+              <p className="text-xs text-slate-400">Audited history of credits, debits, wires, and balance adjustments for this customer.</p>
             </div>
             <Button
               size="sm"
               onClick={() => setQuickCreditDebitOpen(true)}
-              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+              className="text-xs rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
             >
               <TrendingUp className="mr-1.5 size-3.5" /> Post Credit / Debit
             </Button>
@@ -1253,36 +1390,36 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           <TransactionLedger userId={c.id} />
         </TabsContent>
 
-        {/* TAB 2: PROFILE */}
+        {/* TAB 4: PROFILE */}
         <TabsContent value="profile" className="mt-4">
           {!c.profile && <CreateProfile userId={c.id} />}
           {c.profile && (
-            <section className="rounded-xl border border-border bg-card p-6 space-y-5">
-              <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+            <section className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl space-y-5">
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
                 <div>
-                  <h3 className="text-base font-semibold flex items-center gap-2">
-                    <FileText className="size-4 text-primary" /> Personal Identity &amp; Contact Details
+                  <h3 className="text-base font-semibold flex items-center gap-2 text-white font-display">
+                    <FileText className="size-4 text-amber-400" /> Personal Identity &amp; Contact Details
                   </h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-400">
                     View and edit the customer's legal name, primary email address, phone number, and residential address.
                   </p>
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="text-destructive text-xs">
+                    <Button variant="ghost" size="sm" className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-xs rounded-xl">
                       <Trash2 className="mr-1 size-3.5" /> Clear Profile
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Reset customer profile?</AlertDialogTitle>
-                      <AlertDialogDescription>
+                      <AlertDialogTitle className="text-white">Reset customer profile?</AlertDialogTitle>
+                      <AlertDialogDescription className="text-xs text-slate-300">
                         Removes name, phone, and residential address. Login credentials and accounts remain intact.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => delProfileM.mutate({ userId: c.id })}>
+                      <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => delProfileM.mutate({ userId: c.id })} className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs">
                         Confirm Clear
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -1307,12 +1444,12 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                 }}
               >
                 <div>
-                  <Label htmlFor="prof-first-name" className="text-xs font-semibold">
-                    Legal First Name <span className="text-destructive">*</span>
+                  <Label htmlFor="prof-first-name" className="text-xs font-semibold text-slate-300">
+                    Legal First Name <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     id="prof-first-name"
-                    className="mt-1"
+                    className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                     value={p.first_name}
                     onChange={(e) => setP({ ...p, first_name: e.target.value })}
                     required
@@ -1320,12 +1457,12 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                 </div>
 
                 <div>
-                  <Label htmlFor="prof-last-name" className="text-xs font-semibold">
-                    Legal Last Name <span className="text-destructive">*</span>
+                  <Label htmlFor="prof-last-name" className="text-xs font-semibold text-slate-300">
+                    Legal Last Name <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     id="prof-last-name"
-                    className="mt-1"
+                    className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                     value={p.last_name}
                     onChange={(e) => setP({ ...p, last_name: e.target.value })}
                     required
@@ -1333,42 +1470,42 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                 </div>
 
                 <div>
-                  <Label htmlFor="prof-email" className="text-xs font-semibold">
-                    Primary Email Address <span className="text-destructive">*</span>
+                  <Label htmlFor="prof-email" className="text-xs font-semibold text-slate-300">
+                    Primary Email Address <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     id="prof-email"
                     type="email"
-                    className="mt-1"
+                    className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
-                  <p className="mt-1 text-[11px] text-muted-foreground">Used for customer sign-in and security notifications.</p>
+                  <p className="mt-1 text-[11px] text-slate-400">Used for customer sign-in and security notifications.</p>
                 </div>
 
                 <div>
-                  <Label htmlFor="prof-phone" className="text-xs font-semibold">
-                    Direct Telephone / Phone Number <span className="text-destructive">*</span>
+                  <Label htmlFor="prof-phone" className="text-xs font-semibold text-slate-300">
+                    Direct Telephone / Phone Number <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     id="prof-phone"
-                    className="mt-1"
+                    className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                     value={p.phone}
                     onChange={(e) => setP({ ...p, phone: e.target.value })}
                     placeholder="+1 (555) 000-0000"
                     required
                   />
-                  <p className="mt-1 text-[11px] text-muted-foreground">Direct telephone on file for customer contact and security.</p>
+                  <p className="mt-1 text-[11px] text-slate-400">Direct telephone on file for customer contact and security.</p>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <Label htmlFor="prof-address" className="text-xs font-semibold">
-                    Primary Residential Street Address <span className="text-destructive">*</span>
+                  <Label htmlFor="prof-address" className="text-xs font-semibold text-slate-300">
+                    Primary Residential Street Address <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     id="prof-address"
-                    className="mt-1"
+                    className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                     value={p.address}
                     onChange={(e) => setP({ ...p, address: e.target.value })}
                     placeholder="123 Financial Way, Suite 400"
@@ -1377,12 +1514,12 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                 </div>
 
                 <div>
-                  <Label htmlFor="prof-city" className="text-xs font-semibold">
-                    City, State / Region <span className="text-destructive">*</span>
+                  <Label htmlFor="prof-city" className="text-xs font-semibold text-slate-300">
+                    City, State / Region <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     id="prof-city"
-                    className="mt-1"
+                    className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                     value={p.city}
                     onChange={(e) => setP({ ...p, city: e.target.value })}
                     placeholder="e.g. Atlanta, GA or New York, NY"
@@ -1391,12 +1528,12 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                 </div>
 
                 <div>
-                  <Label htmlFor="prof-postal" className="text-xs font-semibold">
-                    Postal / ZIP Code <span className="text-destructive">*</span>
+                  <Label htmlFor="prof-postal" className="text-xs font-semibold text-slate-300">
+                    Postal / ZIP Code <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     id="prof-postal"
-                    className="mt-1"
+                    className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                     value={p.postal_code}
                     onChange={(e) => setP({ ...p, postal_code: e.target.value })}
                     placeholder="e.g. 30303 or 10001"
@@ -1404,9 +1541,9 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                   />
                 </div>
 
-                <div className="sm:col-span-2 pt-2 border-t border-border flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">All changes are recorded in the immutable administrative security audit log.</p>
-                  <Button type="submit" size="sm" disabled={contactInfoM.isPending}>
+                <div className="sm:col-span-2 pt-2 border-t border-white/10 flex items-center justify-between">
+                  <p className="text-xs text-slate-400">All changes are recorded in the immutable administrative security audit log.</p>
+                  <Button type="submit" size="sm" disabled={contactInfoM.isPending} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
                     {contactInfoM.isPending ? "Saving..." : "Save Contact Information"}
                   </Button>
                 </div>
@@ -1415,20 +1552,25 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           )}
         </TabsContent>
 
-        {/* TAB 3: SECURITY */}
+        {/* TAB 5: SECURITY */}
         <TabsContent value="security" className="mt-4 space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
             <form
-              className="rounded-xl border border-border bg-card p-6"
+              className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl"
               onSubmit={(e) => {
                 e.preventDefault();
                 emailM.mutate({ userId: c.id, email });
               }}
             >
-              <h3 className="text-base font-semibold">Primary Login Email</h3>
-              <Input type="email" className="mt-4" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <h3 className="text-base font-semibold text-white font-display">Primary Login Email</h3>
+              <Input
+                type="email"
+                className="mt-4 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button type="submit" size="sm" disabled={emailM.isPending || email === c.email}>
+                <Button type="submit" size="sm" disabled={emailM.isPending || email === c.email} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
                   Update Email
                 </Button>
                 {!c.confirmed && (
@@ -1438,6 +1580,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                     size="sm"
                     disabled={confirmM.isPending}
                     onClick={() => confirmM.mutate({ userId: c.id })}
+                    className="rounded-xl border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs"
                   >
                     <MailCheck className="mr-1.5 size-3.5" /> Mark Confirmed
                   </Button>
@@ -1446,29 +1589,30 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             </form>
 
             <form
-              className="rounded-xl border border-border bg-card p-6"
+              className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl"
               onSubmit={(e) => {
                 e.preventDefault();
                 passM.mutate({ userId: c.id, password }, { onSuccess: () => setPassword("") });
               }}
             >
-              <h3 className="text-base font-semibold">Reset Password</h3>
+              <h3 className="text-base font-semibold text-white font-display">Reset Password</h3>
               <PasswordInput
                 className="mt-4"
+                inputClassName="h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 placeholder="New password (min 10 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <Button type="submit" size="sm" className="mt-4" disabled={passM.isPending || password.length < 10}>
+              <Button type="submit" size="sm" className="mt-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs" disabled={passM.isPending || password.length < 10}>
                 Set Password
               </Button>
             </form>
           </div>
 
           {c.profile && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <h3 className="text-base font-semibold mb-2">Security Questions</h3>
-              <p className="text-xs text-muted-foreground mb-4">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 shadow-xl">
+              <h3 className="text-base font-semibold mb-2 text-white font-display">Security Questions</h3>
+              <p className="text-xs text-slate-400 mb-4">
                 Current: {c.profile.security_question_one} &amp; {c.profile.security_question_two}. Answers are stored with cryptographic hashes.
               </p>
               <ResetSecurity userId={c.id} />
@@ -1476,16 +1620,50 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
           )}
         </TabsContent>
 
-        {/* TAB 4: DANGER ZONE */}
+        {/* TAB 6: DANGER ZONE */}
         <TabsContent value="danger" className="mt-4">
-          <section className="rounded-xl border border-destructive/40 bg-card p-6">
-            <h3 className="text-base font-semibold text-destructive flex items-center gap-2">
+          <section className="rounded-2xl border border-rose-500/30 bg-rose-950/20 backdrop-blur-xl p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-rose-400 flex items-center gap-2 font-display">
               <AlertTriangle className="size-5" /> Danger Zone
             </h3>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Permanently delete this customer's account, profile, and login credentials. This cannot be undone.
+            <p className="mt-2 text-xs text-slate-300">
+              Permanently delete this customer's account, profile, bank accounts, and login credentials. This cannot be undone.
             </p>
             <AlertDialog onOpenChange={() => setConfirmText("")}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="mt-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs">
+                  <Trash2 className="mr-1.5 size-3.5" /> Delete Customer Permanently
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-rose-400 flex items-center gap-2">
+                    <Trash2 className="size-5" /> Delete customer {c.email}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs text-slate-300">
+                    Type <strong className="text-white font-mono">DELETE</strong> to confirm permanent erasure.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Input
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white font-mono"
+                />
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={confirmText !== "DELETE" || deleteM.isPending}
+                    onClick={() => deleteM.mutate({ userId: c.id })}
+                    className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold"
+                  >
+                    Delete Forever
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </section>
+        </TabsContent>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" className="mt-4">
                   <Trash2 className="mr-1.5 size-3.5" /> Delete Customer Permanently
@@ -1629,49 +1807,49 @@ function LogInAsUserDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="size-5 text-primary" /> Authorized Customer Support Access
+          <DialogTitle className="flex items-center gap-2 text-white font-display">
+            <Lock className="size-5 text-amber-400" /> Authorized Customer Support Access
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs text-slate-300">
             You are initiating a direct support session for{" "}
-            <strong>{customer.profile ? `${customer.profile.first_name} ${customer.profile.last_name}` : customer.email}</strong>.
+            <strong className="text-white">{customer.profile ? `${customer.profile.first_name} ${customer.profile.last_name}` : customer.email}</strong>.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div>
-            <Label htmlFor="support-reason" className="text-xs font-semibold">
-              Support Reason or Ticket Reference <span className="text-destructive">*</span>
+            <Label htmlFor="support-reason" className="text-xs font-semibold text-slate-300">
+              Support Reason or Ticket Reference <span className="text-rose-400">*</span>
             </Label>
             <Input
               id="support-reason"
               placeholder="e.g. Ticket #9201 - Verify pending deposit"
-              className="mt-1"
+              className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
           </div>
 
-          <label className="flex items-start gap-2.5 rounded-lg border border-border p-3 cursor-pointer bg-muted/30">
+          <label className="flex items-start gap-2.5 rounded-xl border border-white/10 p-3.5 cursor-pointer bg-slate-950/60 backdrop-blur-md">
             <input
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-1"
+              className="mt-1 rounded accent-amber-500"
             />
-            <span className="text-xs text-muted-foreground leading-relaxed">
+            <span className="text-xs text-slate-300 leading-relaxed">
               I certify that this support session is authorized for official bank operations. This event and my admin username will be permanently recorded in the immutable audit log.
             </span>
           </label>
         </div>
 
         <DialogFooter className="mt-4">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
             Cancel
           </Button>
-          <Button size="sm" onClick={handleLaunch} disabled={busy || !reason.trim() || !agreed}>
+          <Button size="sm" onClick={handleLaunch} disabled={busy || !reason.trim() || !agreed} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
             {busy ? "Authorizing…" : "Launch Customer Session"}
           </Button>
         </DialogFooter>
@@ -1743,38 +1921,38 @@ function EditContactInfoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="size-5 text-primary" /> Edit Personal Contact Information
+          <DialogTitle className="flex items-center gap-2 text-white font-display">
+            <FileText className="size-5 text-amber-400" /> Edit Personal Contact Information
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs text-slate-300">
             Update personal identity and direct contact records for{" "}
-            <strong>{customer.profile ? `${customer.profile.first_name} ${customer.profile.last_name}` : customer.email}</strong>.
+            <strong className="text-white">{customer.profile ? `${customer.profile.first_name} ${customer.profile.last_name}` : customer.email}</strong>.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="ci-first-name" className="text-xs font-semibold">
-                Legal First Name <span className="text-destructive">*</span>
+              <Label htmlFor="ci-first-name" className="text-xs font-semibold text-slate-300">
+                Legal First Name <span className="text-rose-400">*</span>
               </Label>
               <Input
                 id="ci-first-name"
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 value={form.first_name}
                 onChange={(e) => setForm({ ...form, first_name: e.target.value })}
                 required
               />
             </div>
             <div>
-              <Label htmlFor="ci-last-name" className="text-xs font-semibold">
-                Legal Last Name <span className="text-destructive">*</span>
+              <Label htmlFor="ci-last-name" className="text-xs font-semibold text-slate-300">
+                Legal Last Name <span className="text-rose-400">*</span>
               </Label>
               <Input
                 id="ci-last-name"
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 value={form.last_name}
                 onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                 required
@@ -1784,25 +1962,25 @@ function EditContactInfoDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="ci-email" className="text-xs font-semibold">
-                Email Address <span className="text-destructive">*</span>
+              <Label htmlFor="ci-email" className="text-xs font-semibold text-slate-300">
+                Email Address <span className="text-rose-400">*</span>
               </Label>
               <Input
                 id="ci-email"
                 type="email"
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
               />
             </div>
             <div>
-              <Label htmlFor="ci-phone" className="text-xs font-semibold">
-                Telephone / Mobile <span className="text-destructive">*</span>
+              <Label htmlFor="ci-phone" className="text-xs font-semibold text-slate-300">
+                Telephone / Mobile <span className="text-rose-400">*</span>
               </Label>
               <Input
                 id="ci-phone"
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="+1 (555) 000-0000"
@@ -1812,12 +1990,12 @@ function EditContactInfoDialog({
           </div>
 
           <div>
-            <Label htmlFor="ci-address" className="text-xs font-semibold">
-              Primary Residential Address <span className="text-destructive">*</span>
+            <Label htmlFor="ci-address" className="text-xs font-semibold text-slate-300">
+              Primary Residential Address <span className="text-rose-400">*</span>
             </Label>
             <Input
               id="ci-address"
-              className="mt-1"
+              className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               placeholder="123 Financial Way, Suite 400"
@@ -1827,12 +2005,12 @@ function EditContactInfoDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="ci-city" className="text-xs font-semibold">
-                City, State / Region <span className="text-destructive">*</span>
+              <Label htmlFor="ci-city" className="text-xs font-semibold text-slate-300">
+                City, State / Region <span className="text-rose-400">*</span>
               </Label>
               <Input
                 id="ci-city"
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 value={form.city}
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
                 placeholder="e.g. Atlanta, GA or New York, NY"
@@ -1840,12 +2018,12 @@ function EditContactInfoDialog({
               />
             </div>
             <div>
-              <Label htmlFor="ci-postal" className="text-xs font-semibold">
-                Postal / ZIP Code <span className="text-destructive">*</span>
+              <Label htmlFor="ci-postal" className="text-xs font-semibold text-slate-300">
+                Postal / ZIP Code <span className="text-rose-400">*</span>
               </Label>
               <Input
                 id="ci-postal"
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 value={form.postal_code}
                 onChange={(e) => setForm({ ...form, postal_code: e.target.value })}
                 placeholder="e.g. 30303 or 10001"
@@ -1855,16 +2033,17 @@ function EditContactInfoDialog({
           </div>
 
           <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={m.isPending}>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={m.isPending} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={m.isPending}>
+            <Button type="submit" size="sm" disabled={m.isPending} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
               {m.isPending ? "Saving..." : "Save Contact Information"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
   );
 }
 
@@ -1983,21 +2162,21 @@ function QuickCreditDebitModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <TrendingUp className="size-5 text-primary" /> Credit or Debit Customer Account
+          <DialogTitle className="flex items-center gap-2 text-white font-display">
+            <TrendingUp className="size-5 text-amber-400" /> Credit or Debit Customer Account
           </DialogTitle>
-          <DialogDescription>
-            Post a real-time ledger credit or debit for <strong>{customerName}</strong> ({customer.email}).
+          <DialogDescription className="text-xs text-slate-300">
+            Post an immediate ledger credit or debit for <strong className="text-white">{customerName}</strong> ({customer.email}).
           </DialogDescription>
         </DialogHeader>
 
         {customer.accounts.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-3">
-            <Wallet className="size-8 mx-auto text-muted-foreground" />
-            <h4 className="font-semibold text-sm">No Active Accounts</h4>
-            <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+          <div className="rounded-xl border border-dashed border-white/10 p-6 text-center space-y-3 bg-white/5">
+            <Wallet className="size-8 mx-auto text-slate-400" />
+            <h4 className="font-semibold text-sm text-white">No Active Accounts</h4>
+            <p className="text-xs text-slate-400 max-w-xs mx-auto">
               This customer does not have an active banking account yet. Initialize their Everyday Checking account to start crediting.
             </p>
             <Button
@@ -2005,7 +2184,7 @@ function QuickCreditDebitModal({
               size="sm"
               onClick={handleCreateStarterAccount}
               disabled={creatingAcct}
-              className="text-xs"
+              className="text-xs rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold"
             >
               {creatingAcct ? "Opening Checking..." : "Open Everyday Checking Account"}
             </Button>
@@ -2014,14 +2193,14 @@ function QuickCreditDebitModal({
           <form onSubmit={handlePost} className="space-y-4 py-2">
             {/* Account Selector */}
             <div>
-              <Label className="text-xs font-semibold">Select Target Account</Label>
+              <Label className="text-xs font-semibold text-slate-300">Select Target Account</Label>
               <select
                 value={selectedAccountId || currentAccount?.id}
                 onChange={(e) => setSelectedAccountId(e.target.value)}
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-slate-950/60 backdrop-blur-md px-3 text-xs text-white"
               >
                 {customer.accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
+                  <option key={a.id} value={a.id} className="bg-slate-900 text-white">
                     {a.name} (•••• {a.last_four}) — Available: {money(a.available_balance)} [{a.account_type.toUpperCase()}]
                   </option>
                 ))}
@@ -2030,7 +2209,7 @@ function QuickCreditDebitModal({
 
             {/* Type selector */}
             <div>
-              <Label className="text-xs font-semibold">Transaction Type</Label>
+              <Label className="text-xs font-semibold text-slate-300">Transaction Type</Label>
               <div className="grid grid-cols-2 gap-3 mt-1">
                 <button
                   type="button"
@@ -2038,10 +2217,10 @@ function QuickCreditDebitModal({
                     setType("CREDIT");
                     setDescription("Administrative credit / deposit");
                   }}
-                  className={`flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-semibold transition-all ${
                     type === "CREDIT"
-                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-400 shadow-sm"
-                      : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                      ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-300 shadow-sm"
+                      : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <ArrowUpRight className="size-4" /> Credit (+) [Add Funds]
@@ -2052,10 +2231,10 @@ function QuickCreditDebitModal({
                     setType("DEBIT");
                     setDescription("Administrative debit / fee");
                   }}
-                  className={`flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-semibold transition-all ${
                     type === "DEBIT"
-                      ? "border-rose-500 bg-rose-500/15 text-rose-400 shadow-sm"
-                      : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                      ? "border-rose-500/50 bg-rose-500/20 text-rose-300 shadow-sm"
+                      : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <ArrowDownRight className="size-4" /> Debit (−) [Deduct Funds]
@@ -2081,18 +2260,18 @@ function QuickCreditDebitModal({
             {/* Amount input & Quick buttons */}
             <div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="quick-amount" className="text-xs font-semibold">
-                  Amount ({currentAccount?.currency || "USD"}) <span className="text-destructive">*</span>
+                <Label htmlFor="quick-amount" className="text-xs font-semibold text-slate-300">
+                  Amount ({currentAccount?.currency || "USD"}) <span className="text-rose-400">*</span>
                 </Label>
-                <span className="text-[11px] text-muted-foreground">
-                  Current: <strong>{money(currentAccount?.available_balance || 0)}</strong>
+                <span className="text-[11px] text-slate-400">
+                  Current: <strong className="text-white">{money(currentAccount?.available_balance || 0)}</strong>
                 </span>
               </div>
               <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-mono">$</span>
                 <Input
                   id="quick-amount"
-                  className="pl-7 font-mono font-bold text-sm"
+                  className="pl-7 font-mono font-bold text-sm h-10 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500 focus:border-amber-500/50"
                   inputMode="decimal"
                   placeholder="0.00"
                   value={amount}
@@ -2108,7 +2287,7 @@ function QuickCreditDebitModal({
                     key={preset}
                     type="button"
                     onClick={() => setAmount(String(preset))}
-                    className="text-[11px] font-mono rounded bg-muted/50 border border-border/80 px-2 py-0.5 hover:bg-muted hover:text-foreground text-muted-foreground"
+                    className="text-[11px] font-mono rounded-lg bg-white/5 border border-white/10 px-2.5 py-1 hover:bg-white/10 hover:text-white text-slate-300 transition-all"
                   >
                     +${preset.toLocaleString()}
                   </button>
@@ -2119,12 +2298,12 @@ function QuickCreditDebitModal({
             {/* Description & Reference */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="quick-desc" className="text-xs font-semibold">
-                  Description / Memo <span className="text-destructive">*</span>
+                <Label htmlFor="quick-desc" className="text-xs font-semibold text-slate-300">
+                  Description / Memo <span className="text-rose-400">*</span>
                 </Label>
                 <Input
                   id="quick-desc"
-                  className="mt-1 text-xs"
+                  className="mt-1 text-xs h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500 focus:border-amber-500/50"
                   maxLength={300}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -2133,12 +2312,12 @@ function QuickCreditDebitModal({
                 />
               </div>
               <div>
-                <Label htmlFor="quick-ref" className="text-xs font-semibold">
+                <Label htmlFor="quick-ref" className="text-xs font-semibold text-slate-300">
                   Internal Reference (Optional)
                 </Label>
                 <Input
                   id="quick-ref"
-                  className="mt-1 text-xs font-mono"
+                  className="mt-1 text-xs font-mono h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500 focus:border-amber-500/50"
                   maxLength={100}
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
@@ -2149,25 +2328,25 @@ function QuickCreditDebitModal({
 
             {/* Live Balance Summary */}
             {validAmount && currentAccount && (
-              <div className="rounded-lg border border-border/80 bg-background/50 p-3 space-y-1.5 text-xs">
+              <div className="rounded-xl border border-white/10 bg-slate-950/60 backdrop-blur-md p-3.5 space-y-1.5 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Current Available Balance:</span>
-                  <span className="font-mono font-medium">{money(before)}</span>
+                  <span className="text-slate-400">Current Available Balance:</span>
+                  <span className="font-mono font-medium text-white">{money(before)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{type === "CREDIT" ? "Credit Addition:" : "Debit Deduction:"}</span>
+                  <span className="text-slate-400">{type === "CREDIT" ? "Credit Addition:" : "Debit Deduction:"}</span>
                   <span className={`font-mono font-bold ${type === "CREDIT" ? "text-emerald-400" : "text-rose-400"}`}>
                     {type === "CREDIT" ? "+" : "−"}{money(numAmount)}
                   </span>
                 </div>
-                <div className="border-t border-border/60 pt-1.5 flex justify-between font-bold">
-                  <span>Resulting Available Balance:</span>
+                <div className="border-t border-white/10 pt-1.5 flex justify-between font-bold">
+                  <span className="text-white">Resulting Available Balance:</span>
                   <span className={`font-mono ${after < 0 ? "text-rose-400" : "text-emerald-400"}`}>
                     {money(after)}
                   </span>
                 </div>
                 {isOverdraft && (
-                  <p className="text-[11px] text-amber-400 pt-1 font-medium">
+                  <p className="text-[11px] text-amber-300 pt-1 font-medium">
                     ⚠️ Notice: This debit will result in a negative balance ({money(after)}). Administrative overdraft is authorized.
                   </p>
                 )}
@@ -2175,14 +2354,14 @@ function QuickCreditDebitModal({
             )}
 
             <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
+              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 size="sm"
                 disabled={busy || !validAmount}
-                className={type === "CREDIT" ? "bg-emerald-600 hover:bg-emerald-500 text-white font-semibold" : "bg-rose-600 hover:bg-rose-500 text-white font-semibold"}
+                className={`rounded-xl text-xs font-semibold ${type === "CREDIT" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-rose-600 hover:bg-rose-500 text-white"}`}
               >
                 {busy ? "Processing…" : `Confirm ${type === "CREDIT" ? "Credit (+)" : "Debit (−)"}`}
               </Button>
@@ -2238,16 +2417,16 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-4 space-y-4">
+    <div className="rounded-2xl border border-white/10 bg-slate-950/40 backdrop-blur-md p-5 space-y-4 shadow-lg">
       <form onSubmit={submit} className="space-y-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/10 pb-3">
           <div>
-            <p className="text-xs text-muted-foreground capitalize">{a.account_type} Account</p>
-            <p className="text-base font-semibold text-foreground">{a.name} (•••• {a.last_four})</p>
+            <p className="text-xs text-slate-400 capitalize">{a.account_type} Account</p>
+            <p className="text-base font-semibold text-white">{a.name} (•••• {a.last_four})</p>
           </div>
           <div className="text-right flex flex-col items-end gap-1">
-            <p className="text-xs text-muted-foreground">Available Balance</p>
-            <p className="text-xl font-bold text-primary font-display">
+            <p className="text-xs text-slate-400">Available Balance</p>
+            <p className="text-xl font-bold text-amber-400 font-display">
               {a.available_balance.toLocaleString("en-US", { style: "currency", currency: a.currency })}
             </p>
             <Button
@@ -2259,7 +2438,7 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
                 setDirectCurrent(String(a.current_balance));
                 setAdjustOpen(true);
               }}
-              className="h-6 text-[10px] px-2 text-muted-foreground hover:text-foreground"
+              className="h-6 text-[10px] px-2 rounded-lg border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white"
             >
               <Sliders className="mr-1 size-3" /> Adjust Directly
             </Button>
@@ -2268,27 +2447,27 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
 
         <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto] sm:items-end">
           <div>
-            <Label className="text-xs">Account Label</Label>
-            <Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} />
+            <Label className="text-xs text-slate-300">Account Label</Label>
+            <Input className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <Label className="text-xs">Last 4 Digits</Label>
-            <Input className="mt-1 font-mono" maxLength={4} value={four} onChange={(e) => setFour(e.target.value)} />
+            <Label className="text-xs text-slate-300">Last 4 Digits</Label>
+            <Input className="mt-1 h-9 font-mono rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white" maxLength={4} value={four} onChange={(e) => setFour(e.target.value)} />
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="text-destructive text-xs">
+              <Button type="button" variant="ghost" size="sm" className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-xs rounded-xl h-9">
                 <Trash2 className="mr-1 size-3.5" /> Remove
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
               <AlertDialogHeader>
-                <AlertDialogTitle>Remove {a.name}?</AlertDialogTitle>
-                <AlertDialogDescription>This account will be erased. Its transaction ledger remains intact.</AlertDialogDescription>
+                <AlertDialogTitle className="text-white">Remove {a.name}?</AlertDialogTitle>
+                <AlertDialogDescription className="text-xs text-slate-300">This account will be erased. Its transaction ledger remains intact.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => removeM.mutate({ accountId: a.id })}>
+                <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => removeM.mutate({ accountId: a.id })} className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs">
                   Confirm Remove
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -2296,20 +2475,20 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
           </AlertDialog>
         </div>
 
-        <div className="grid items-center gap-3 sm:grid-cols-[1fr_1fr_auto] border-t border-border/40 pt-3">
+        <div className="grid items-center gap-3 sm:grid-cols-[1fr_1fr_auto] border-t border-white/10 pt-3">
           <div>
             {a.account_type === "credit" && (
               <>
-                <Label className="text-xs">Credit Limit</Label>
-                <Input className="mt-1" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
+                <Label className="text-xs text-slate-300">Credit Limit</Label>
+                <Input className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white font-mono" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
               </>
             )}
           </div>
           <div className="flex items-center gap-2">
             <Switch checked={overdraft} onCheckedChange={setOverdraft} id={`od-${a.id}`} />
-            <Label htmlFor={`od-${a.id}`} className="text-xs cursor-pointer">Allow Overdraft</Label>
+            <Label htmlFor={`od-${a.id}`} className="text-xs text-slate-300 cursor-pointer">Allow Overdraft</Label>
           </div>
-          <Button type="submit" size="sm" disabled={m.isPending || renameM.isPending}>
+          <Button type="submit" size="sm" disabled={m.isPending || renameM.isPending} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs h-9">
             Save Settings
           </Button>
         </div>
@@ -2318,13 +2497,13 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
       <TransactionForm a={a} />
 
       <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sliders className="size-4 text-primary" /> Direct Balance Override
+            <DialogTitle className="flex items-center gap-2 text-white font-display">
+              <Sliders className="size-4 text-amber-400" /> Direct Balance Override
             </DialogTitle>
-            <DialogDescription>
-              Directly set the balances for {a.name} (•••• {a.last_four}). This adjustment will be recorded in the security audit log.
+            <DialogDescription className="text-xs text-slate-300">
+              Directly set the balances for <strong className="text-white">{a.name} (•••• {a.last_four})</strong>. This adjustment will be recorded in the security audit log.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -2351,24 +2530,24 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
             className="space-y-4 py-2"
           >
             <div>
-              <Label className="text-xs font-semibold">Available Balance ({a.currency})</Label>
+              <Label className="text-xs font-semibold text-slate-300">Available Balance ({a.currency})</Label>
               <Input
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white font-mono"
                 inputMode="decimal"
                 value={directAvailable}
                 onChange={(e) => setDirectAvailable(e.target.value)}
                 required
               />
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Funds immediately available for spending or transfers.
+              <p className="mt-1 text-[11px] text-slate-400">
+                Funds immediately available for customer spending or transfers.
               </p>
             </div>
             <div>
-              <Label className="text-xs font-semibold">
+              <Label className="text-xs font-semibold text-slate-300">
                 {a.account_type === "credit" ? "Current Balance Owed (Card Debt)" : "Current / Ledger Balance"} ({a.currency})
               </Label>
               <Input
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white font-mono"
                 inputMode="decimal"
                 value={directCurrent}
                 onChange={(e) => setDirectCurrent(e.target.value)}
@@ -2376,9 +2555,9 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
               />
             </div>
             <div>
-              <Label className="text-xs font-semibold">Reason for Balance Override</Label>
+              <Label className="text-xs font-semibold text-slate-300">Reason for Balance Override</Label>
               <Input
-                className="mt-1"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs placeholder:text-slate-500"
                 maxLength={200}
                 value={directReason}
                 onChange={(e) => setDirectReason(e.target.value)}
@@ -2387,10 +2566,10 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
               />
             </div>
             <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" size="sm" onClick={() => setAdjustOpen(false)} disabled={directM.isPending}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setAdjustOpen(false)} disabled={directM.isPending} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
                 Cancel
               </Button>
-              <Button type="submit" size="sm" disabled={directM.isPending}>
+              <Button type="submit" size="sm" disabled={directM.isPending} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
                 {directM.isPending ? "Applying…" : "Save Balance"}
               </Button>
             </DialogFooter>
@@ -2435,35 +2614,35 @@ function AddAccount({ userId, existing }: { userId: string; existing: string[] }
   };
 
   return (
-    <form onSubmit={submit} className="mt-4 grid items-end gap-3 rounded-xl border border-dashed border-border p-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
+    <form onSubmit={submit} className="mt-4 grid items-end gap-3 rounded-2xl border border-dashed border-white/10 bg-slate-950/40 backdrop-blur-md p-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
       <div>
-        <Label className="text-xs">Add Account Type</Label>
+        <Label className="text-xs text-slate-300">Add Account Type</Label>
         <select
           value={t}
           onChange={(e) => setType(e.target.value)}
-          className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-xs capitalize"
+          className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-slate-950/60 backdrop-blur-md px-3 text-xs text-white capitalize"
         >
           {missing.map((x) => (
-            <option key={x} value={x}>
+            <option key={x} value={x} className="bg-slate-900 text-white">
               {x}
             </option>
           ))}
         </select>
       </div>
       <div>
-        <Label className="text-xs">{t === "credit" ? "Amount Owed" : "Opening Balance"}</Label>
-        <Input className="mt-1 h-9 text-xs" inputMode="decimal" value={bal} onChange={(e) => setBal(e.target.value)} />
+        <Label className="text-xs text-slate-300">{t === "credit" ? "Amount Owed" : "Opening Balance"}</Label>
+        <Input className="mt-1 h-9 text-xs font-mono rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white" inputMode="decimal" value={bal} onChange={(e) => setBal(e.target.value)} />
       </div>
       <div>
         {t === "credit" && (
           <>
-            <Label className="text-xs">Credit Limit</Label>
-            <Input className="mt-1 h-9 text-xs" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
+            <Label className="text-xs text-slate-300">Credit Limit</Label>
+            <Input className="mt-1 h-9 text-xs font-mono rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
           </>
         )}
       </div>
-      <Button type="submit" size="sm" className="text-xs" disabled={m.isPending}>
-        <Plus className="mr-1 size-3.5" /> Add
+      <Button type="submit" size="sm" className="text-xs rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold h-9" disabled={m.isPending}>
+        <Plus className="mr-1 size-3.5" /> Add Account
       </Button>
     </form>
   );
@@ -2483,22 +2662,22 @@ function SecurityFields({ v, set }: { v: typeof emptySec; set: (v: typeof emptyS
   return (
     <>
       {([["security_question_one", "answer_one"], ["security_question_two", "answer_two"]] as const).map(([q, a], i) => (
-        <div key={q} className="space-y-2">
-          <Label className="text-xs">Question {i + 1}</Label>
+        <div key={q} className="space-y-1.5">
+          <Label className="text-xs text-slate-300">Security Question {i + 1}</Label>
           <select
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+            className="h-9 w-full rounded-xl border border-white/10 bg-slate-950/60 backdrop-blur-md px-3 text-xs text-white"
             value={v[q]}
             onChange={(e) => set({ ...v, [q]: e.target.value })}
           >
             {QUESTIONS.map((opt) => (
-              <option key={opt} value={opt}>
+              <option key={opt} value={opt} className="bg-slate-900 text-white">
                 {opt}
               </option>
             ))}
           </select>
           <Input
-            placeholder="Answer"
-            className="text-xs"
+            placeholder="Security answer"
+            className="text-xs h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
             value={v[a]}
             onChange={(e) => set({ ...v, [a]: e.target.value })}
           />
@@ -2517,19 +2696,19 @@ function CreateProfile({ userId }: { userId: string }) {
     m.mutate({ userId, ...p, ...s });
   };
   return (
-    <form onSubmit={submit} className="rounded-xl border border-dashed border-border bg-card p-6 space-y-4">
-      <h3 className="text-base font-semibold">Create Initial Customer Profile</h3>
+    <form onSubmit={submit} className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-6 space-y-4 shadow-xl">
+      <h3 className="text-base font-semibold text-white font-display">Create Initial Customer Profile</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         {(Object.keys(p) as (keyof typeof p)[]).map((k) => (
           <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
-            <Label className="capitalize text-xs">{k.replace("_", " ")}</Label>
-            <Input className="mt-1 text-xs" value={p[k]} onChange={(e) => setP({ ...p, [k]: e.target.value })} />
+            <Label className="capitalize text-xs text-slate-300">{k.replace("_", " ")}</Label>
+            <Input className="mt-1 text-xs h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500" value={p[k]} onChange={(e) => setP({ ...p, [k]: e.target.value })} />
           </div>
         ))}
         <SecurityFields v={s} set={setS} />
       </div>
-      <Button type="submit" size="sm" disabled={m.isPending}>
-        Create Profile
+      <Button type="submit" size="sm" disabled={m.isPending} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
+        {m.isPending ? "Creating..." : "Create Profile"}
       </Button>
     </form>
   );
@@ -2545,13 +2724,13 @@ function ResetSecurity({ userId }: { userId: string }) {
   };
   return (
     <div>
-      <Button type="button" variant="outline" size="sm" className="text-xs" onClick={() => setOpen(!open)}>
+      <Button type="button" variant="outline" size="sm" className="text-xs rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-slate-200" onClick={() => setOpen(!open)}>
         <KeyRound className="mr-1.5 size-3.5" /> Reset Security Questions
       </Button>
       {open && (
-        <form onSubmit={submit} className="mt-4 space-y-3 rounded-lg border border-border p-4 bg-muted/20">
+        <form onSubmit={submit} className="mt-4 space-y-3 rounded-2xl border border-white/10 p-5 bg-slate-950/40 backdrop-blur-md">
           <SecurityFields v={s} set={setS} />
-          <Button type="submit" size="sm" disabled={m.isPending}>
+          <Button type="submit" size="sm" disabled={m.isPending} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
             Save New Questions
           </Button>
         </form>
@@ -2591,24 +2770,24 @@ function NewCustomerDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button size="sm" onClick={() => setOpen(true)} className="text-xs">
-        <UserPlus className="mr-1.5 size-3.5" /> Add Customer
+      <Button size="sm" onClick={() => setOpen(true)} className="h-8 gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold shadow-sm">
+        <UserPlus className="size-3.5" /> Add Customer
       </Button>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
         <DialogHeader>
-          <DialogTitle>Create New Bank Customer</DialogTitle>
-          <DialogDescription className="text-xs">
+          <DialogTitle className="text-white font-display">Create New Bank Customer</DialogTitle>
+          <DialogDescription className="text-xs text-slate-300">
             Creates an authenticated login and automatically provisions Everyday Checking and Gold Rewards Card accounts.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4 py-2">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label className="text-xs">Email *</Label>
+              <Label className="text-xs text-slate-300">Email <span className="text-rose-400">*</span></Label>
               <Input
                 type="email"
                 placeholder="customer@domain.com"
-                className="mt-1 text-xs"
+                className="mt-1 text-xs h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -2616,18 +2795,18 @@ function NewCustomerDialog() {
             </div>
             <div>
               <div className="flex items-center justify-between">
-                <Label className="text-xs">Password *</Label>
+                <Label className="text-xs text-slate-300">Password <span className="text-rose-400">*</span></Label>
                 <button
                   type="button"
                   onClick={generatePassword}
-                  className="text-[10px] text-primary hover:underline"
+                  className="text-[10px] text-amber-400 hover:underline"
                 >
                   Generate Strong
                 </button>
               </div>
               <Input
                 type="text"
-                className="mt-1 text-xs font-mono"
+                className="mt-1 text-xs font-mono h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500"
                 required
                 placeholder="Min 10 characters"
                 value={password}
@@ -2638,17 +2817,17 @@ function NewCustomerDialog() {
           <div className="grid gap-3 sm:grid-cols-2">
             {(Object.keys(p) as (keyof typeof p)[]).map((k) => (
               <div key={k} className={k === "address" ? "sm:col-span-2" : ""}>
-                <Label className="capitalize text-xs">{k.replace("_", " ")} *</Label>
-                <Input className="mt-1 text-xs" required value={p[k]} onChange={(e) => setP({ ...p, [k]: e.target.value })} />
+                <Label className="capitalize text-xs text-slate-300">{k.replace("_", " ")} <span className="text-rose-400">*</span></Label>
+                <Input className="mt-1 text-xs h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500" required value={p[k]} onChange={(e) => setP({ ...p, [k]: e.target.value })} />
               </div>
             ))}
           </div>
           <SecurityFields v={s} set={setS} />
           <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={createM.isPending || password.length < 10}>
+            <Button type="submit" size="sm" disabled={createM.isPending || password.length < 10} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
               {createM.isPending ? "Creating Account…" : "Create Customer"}
             </Button>
           </DialogFooter>
@@ -2657,71 +2836,74 @@ function NewCustomerDialog() {
     </Dialog>
   );
 }
+}
 
-function HomepageInquiries({ auditLogs }: { auditLogs: { id: string; action: string; details: string; created_at: string }[] }) {
-  const inquiries = useMemo(() => {
-    return auditLogs
-      .filter((r) => r.action === "homepage_inquiry")
-      .map((r) => {
-        let parsed: { name?: string; email?: string; phone?: string; department?: string; message?: string } = {};
-        try {
-          parsed = JSON.parse(r.details);
-        } catch {}
-        return {
-          id: r.id,
-          created_at: r.created_at,
-          ...parsed,
-        };
-      });
-  }, [auditLogs]);
+function PurgeTestrunDialog({ onPurged }: { onPurged: () => void }) {
+  const purgeFn = useServerFn(purgeTestrunUsers);
+  const [purging, setPurging] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const handlePurge = async () => {
+    setPurging(true);
+    try {
+      const res = await purgeFn();
+      if (res.purgedCount > 0) {
+        toast.success(`Successfully purged ${res.purgedCount} testrun user(s)! Only user-created accounts remain.`);
+      } else {
+        toast.info("No testrun users found. Only your custom accounts exist.");
+      }
+      setOpen(false);
+      onPurged();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to purge testrun users");
+    } finally {
+      setPurging(false);
+    }
+  };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight">Homepage Client Inquiries</h2>
-          <p className="text-xs text-muted-foreground">
-            Inquiries and leads submitted directly through the Eastern Trust Bank website contact portal.
-          </p>
-        </div>
-        <Badge variant="outline" className="text-xs">{inquiries.length} received</Badge>
-      </div>
-
-      {inquiries.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
-          <Mail className="mx-auto size-10 text-muted-foreground/60" />
-          <h3 className="mt-3 text-base font-semibold text-foreground">No Homepage Inquiries Yet</h3>
-          <p className="mt-1 text-xs">Direct messages submitted from the public homepage will appear here instantly.</p>
-        </div>
-      ) : (
-        <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
-          {inquiries.map((inq) => (
-            <div key={inq.id} className="p-5 hover:bg-accent/40 transition-colors space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-foreground">{inq.name || "Anonymous Visitor"}</span>
-                  {inq.department && (
-                    <Badge variant="outline" className="text-[10px] capitalize">
-                      {inq.department}
-                    </Badge>
-                  )}
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(inq.created_at).toLocaleString()}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground font-mono">
-                {inq.email && <span>Email: <a href={`mailto:${inq.email}`} className="text-primary hover:underline">{inq.email}</a></span>}
-                {inq.phone && <span>Phone: <a href={`tel:${inq.phone}`} className="text-foreground hover:underline">{inq.phone}</a></span>}
-              </div>
-              <p className="text-xs text-foreground/90 bg-muted/30 p-3 rounded-md border border-border/50 whitespace-pre-wrap">
-                {inq.message || "—"}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 rounded-xl border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200 text-xs font-medium transition-all"
+        >
+          <Sparkles className="size-3.5 text-rose-400" />
+          Purge Test Users
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-rose-400 text-lg">
+            <Trash2 className="size-5" />
+            Purge All Testrun Customers?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-xs text-slate-300 leading-relaxed space-y-2">
+            <span className="block">
+              This will automatically identify and delete dummy, sample, and test accounts
+              (e.g. <code className="text-amber-300 font-mono">*@test.com</code>, <code className="text-amber-300 font-mono">*@example.com</code>, <code className="text-amber-300 font-mono">*@client.easterntrustbank.co</code>, Jane Doe, or test profiles).
+            </span>
+            <span className="block font-semibold text-rose-300">
+              Only authentic user-created accounts will be kept intact.
+            </span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handlePurge}
+            disabled={purging}
+            className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs"
+          >
+            {purging ? "Purging Test Users…" : "Yes, Purge Test Accounts"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

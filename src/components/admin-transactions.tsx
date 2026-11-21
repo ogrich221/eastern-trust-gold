@@ -58,42 +58,100 @@ export function TransactionForm({ a }: { a: Acct }) {
   const isOverdraft = type === "DEBIT" && after < 0;
 
   return (
-    <div className="space-y-3 border-t border-border pt-3">
-      <p className="text-xs font-semibold uppercase tracking-widest text-primary">New transaction</p>
+    <div className="space-y-4 border-t border-white/10 pt-4">
+      <div className="flex items-center gap-2">
+        <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
+        <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">Post Real-Time Transaction</p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[140px_90px_160px_1fr_160px]">
-        <div><Label className="text-xs">Amount</Label><Input className="mt-1" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></div>
-        <div><Label className="text-xs">Currency</Label>
-          <select className="mt-1 h-9 w-full border border-input bg-background px-2 text-sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+        <div>
+          <Label className="text-xs text-slate-300">Amount</Label>
+          <Input
+            className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white font-mono placeholder:text-slate-500 focus:border-amber-500/50"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+        <div>
+          <Label className="text-xs text-slate-300">Currency</Label>
+          <select
+            className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-slate-950/60 backdrop-blur-md px-2 text-xs text-white"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+          >
             <option value={a.currency}>{a.currency}</option>
           </select>
         </div>
-        <div><Label htmlFor={`transaction-date-${a.id}`} className="text-xs">Transaction date</Label><Input id={`transaction-date-${a.id}`} className="mt-1" type="date" required value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} /></div>
-        <div><Label className="text-xs">Description / reason (required)</Label><Input className="mt-1" maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Wire transfer, payroll, adjustment" /></div>
-        <div><Label className="text-xs">Internal reference (optional)</Label><Input className="mt-1" maxLength={100} value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. TXN-10492" /></div>
+        <div>
+          <Label htmlFor={`transaction-date-${a.id}`} className="text-xs text-slate-300">Transaction date</Label>
+          <Input
+            id={`transaction-date-${a.id}`}
+            className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs focus:border-amber-500/50"
+            type="date"
+            required
+            value={transactionDate}
+            onChange={(e) => setTransactionDate(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label className="text-xs text-slate-300">Description / reason (required)</Label>
+          <Input
+            className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white placeholder:text-slate-500 focus:border-amber-500/50"
+            maxLength={300}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. Wire transfer, payroll, adjustment"
+          />
+        </div>
+        <div>
+          <Label className="text-xs text-slate-300">Internal reference (optional)</Label>
+          <Input
+            className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white font-mono placeholder:text-slate-500 focus:border-amber-500/50"
+            maxLength={100}
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="e.g. TXN-10492"
+          />
+        </div>
       </div>
       <div className="flex gap-2">
-        <Button type="button" size="sm" onClick={() => open("CREDIT")} className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => open("CREDIT")}
+          className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm"
+        >
           + Credit Account
         </Button>
-        <Button type="button" size="sm" variant="outline" onClick={() => open("DEBIT")} className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10 font-semibold text-xs">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => open("DEBIT")}
+          className="rounded-xl border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 font-semibold text-xs"
+        >
           − Debit Account
         </Button>
       </div>
       <AlertDialog open={type !== null} onOpenChange={(o) => { if (!o && !m.isPending) setType(null); }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm {type === "CREDIT" ? "Credit (+)" : "Debit (−)"}</AlertDialogTitle>
+            <AlertDialogTitle className="text-lg font-bold text-white">
+              Confirm {type === "CREDIT" ? "Credit (+)" : "Debit (−)"}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm">
-                <p>{a.name} •••• {a.last_four}</p>
+              <div className="space-y-2 text-sm text-slate-300">
+                <p className="font-semibold text-white">{a.name} •••• {a.last_four}</p>
                 <p>Transaction Amount: <strong className={type === "CREDIT" ? "text-emerald-400" : "text-rose-400"}>{type === "CREDIT" ? "+" : "−"}{fmt(n || 0, currency)}</strong></p>
-                <p>Current Balance: <strong>{fmt(a.available_balance, a.currency)}</strong></p>
+                <p>Current Balance: <strong className="text-white">{fmt(a.available_balance, a.currency)}</strong></p>
                 <p>Resulting Balance: <strong className={after < 0 ? "text-rose-400" : "text-emerald-400"}>{fmt(after, a.currency)}</strong></p>
-                <p>Transaction date: <strong>{formatTransactionDate(transactionDate)}</strong></p>
-                <p>Reason / Description: <em>{description}</em></p>
-                {reference && <p>Reference: {reference}</p>}
+                <p>Transaction date: <strong className="text-white">{formatTransactionDate(transactionDate)}</strong></p>
+                <p>Reason / Description: <em className="text-slate-200">{description}</em></p>
+                {reference && <p className="font-mono text-xs">Reference: {reference}</p>}
                 {isOverdraft && (
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
                     <strong>Administrative Overdraft:</strong> This debit exceeds available funds. Resulting balance will be <strong>{fmt(after, a.currency)}</strong>. Administrative override is authorized.
                   </div>
                 )}
@@ -101,9 +159,13 @@ export function TransactionForm({ a }: { a: Acct }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={m.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={m.isPending} onClick={(e) => { e.preventDefault(); if (type) m.mutate(type); }}>
-              {m.isPending ? "Processing…" : `Confirm ${type === "CREDIT" ? "Credit" : "Debit"}`}
+            <AlertDialogCancel disabled={m.isPending} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={m.isPending}
+              onClick={(e) => { e.preventDefault(); if (type) m.mutate(type); }}
+              className={`rounded-xl text-xs font-semibold ${type === "CREDIT" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-rose-600 hover:bg-rose-500 text-white"}`}
+            >
+              {m.isPending ? "Posting…" : "Confirm & Post"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -127,64 +189,158 @@ export function TransactionLedger({ userId, emailOf }: { userId?: string; emailO
   });
   const set = (k: keyof typeof f, v: string) => { setF({ ...f, [k]: v }); setPage(0); };
   const pages = q.data ? Math.max(1, Math.ceil(q.data.total / q.data.pageSize)) : 1;
-  const sel = "h-9 border border-input bg-background px-2 text-sm";
+  const sel = "h-9 rounded-xl border border-white/10 bg-slate-950/60 backdrop-blur-md px-3 text-xs text-white focus:border-amber-500/50";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
-        <select className={sel} value={f.type} onChange={(e) => set("type", e.target.value)}><option value="ALL">All types</option><option>CREDIT</option><option>DEBIT</option></select>
-        <select className={sel} value={f.status} onChange={(e) => set("status", e.target.value)}><option value="ALL">All statuses</option><option>COMPLETED</option><option>PENDING</option><option>FAILED</option><option>REVERSED</option></select>
-        <Input className="w-40" placeholder="Admin" value={f.adminName} onChange={(e) => set("adminName", e.target.value)} />
-        <Input className="w-40" type="date" value={f.from} onChange={(e) => set("from", e.target.value)} aria-label="From date" />
-        <Input className="w-40" type="date" value={f.to} onChange={(e) => set("to", e.target.value)} aria-label="To date" />
+        <select className={sel} value={f.type} onChange={(e) => set("type", e.target.value)}>
+          <option value="ALL">All types</option>
+          <option>CREDIT</option>
+          <option>DEBIT</option>
+        </select>
+        <select className={sel} value={f.status} onChange={(e) => set("status", e.target.value)}>
+          <option value="ALL">All statuses</option>
+          <option>COMPLETED</option>
+          <option>PENDING</option>
+          <option>FAILED</option>
+          <option>REVERSED</option>
+        </select>
+        <Input
+          className="w-40 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs placeholder:text-slate-500 focus:border-amber-500/50"
+          placeholder="Filter by Admin..."
+          value={f.adminName}
+          onChange={(e) => set("adminName", e.target.value)}
+        />
+        <Input
+          className="w-40 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs"
+          type="date"
+          value={f.from}
+          onChange={(e) => set("from", e.target.value)}
+          aria-label="From date"
+        />
+        <Input
+          className="w-40 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs"
+          type="date"
+          value={f.to}
+          onChange={(e) => set("to", e.target.value)}
+          aria-label="To date"
+        />
       </div>
-      <div className="overflow-x-auto border border-border bg-card">
+
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="border-b border-border text-left text-muted-foreground">
-            <tr><th className="p-2">Transaction date</th><th className="p-2">ID</th>{!userId && <th className="p-2">Customer</th>}<th className="p-2">Type</th><th className="p-2 text-right">Amount</th><th className="p-2 text-right">Before → After</th><th className="p-2">Reason</th><th className="p-2">Admin</th><th className="p-2">Status</th><th className="p-2" /></tr>
+          <thead className="border-b border-white/10 text-left text-xs text-slate-400">
+            <tr>
+              <th className="p-3">Transaction Date</th>
+              <th className="p-3">ID</th>
+              {!userId && <th className="p-3">Customer</th>}
+              <th className="p-3">Type</th>
+              <th className="p-3 text-right">Amount</th>
+              <th className="p-3 text-right">Before → After</th>
+              <th className="p-3">Reason</th>
+              <th className="p-3">Admin</th>
+              <th className="p-3">Status</th>
+              <th className="p-3" />
+            </tr>
           </thead>
-          <tbody>
-            {q.isLoading && <tr><td colSpan={10} className="p-3 text-muted-foreground">Loading…</td></tr>}
-            {q.error && <tr><td colSpan={10} className="p-3 text-destructive">{errMsg(q.error)}</td></tr>}
+          <tbody className="divide-y divide-white/5 text-slate-200">
+            {q.isLoading && <tr><td colSpan={10} className="p-4 text-center text-slate-400">Loading transactions…</td></tr>}
+            {q.error && <tr><td colSpan={10} className="p-4 text-center text-rose-400">{errMsg(q.error)}</td></tr>}
             {q.data?.rows.map((t) => (
-              <tr key={t.id} className="border-b border-border align-top">
-                <td className="p-2 whitespace-nowrap">
-                  {formatTransactionDate(t.transaction_date)}
-                  <div className="text-xs text-muted-foreground">Entered {new Date(t.created_at).toLocaleString()}</div>
+              <tr key={t.id} className="hover:bg-white/5 transition-colors align-top">
+                <td className="p-3 whitespace-nowrap">
+                  <div className="text-xs font-medium text-white">{formatTransactionDate(t.transaction_date)}</div>
+                  <div className="text-[10px] text-slate-400">Entered {new Date(t.created_at).toLocaleString()}</div>
                 </td>
-                <td className="p-2 font-mono text-xs" title={t.id}>{t.id.slice(0, 8)}{t.reference && <div className="text-muted-foreground">ref {t.reference.slice(0, 12)}</div>}</td>
-                {!userId && <td className="p-2 text-xs">{emailOf?.(t.user_id) ?? t.user_id.slice(0, 8)}</td>}
-                <td className="p-2"><Badge variant={t.txn_type === "CREDIT" ? "default" : "outline"}>{t.txn_type}</Badge></td>
-                <td className="p-2 text-right whitespace-nowrap">{fmt(t.amount, t.currency)}</td>
-                <td className="p-2 text-right whitespace-nowrap text-xs">{fmt(t.balance_before, t.currency)} → {fmt(t.balance_after, t.currency)}</td>
-                <td className="max-w-xs p-2 text-xs">{t.description}{t.reversal_reason && t.status === "REVERSED" && <div className="text-muted-foreground">Reversed: {t.reversal_reason}</div>}</td>
-                <td className="p-2 text-xs">{t.admin_name}</td>
-                <td className="p-2"><Badge variant={t.status === "REVERSED" || t.status === "FAILED" ? "destructive" : "secondary"}>{t.status}</Badge></td>
-                <td className="p-2">{t.status === "COMPLETED" && !t.reverses_id && <Button size="sm" variant="ghost" onClick={() => setRev({ id: t.id, reason: "", key: newKey() })}><Undo2 /> Reverse</Button>}</td>
+                <td className="p-3 font-mono text-xs text-white" title={t.id}>
+                  {t.id.slice(0, 8)}
+                  {t.reference && <div className="text-[10px] text-slate-400 font-mono">ref {t.reference.slice(0, 12)}</div>}
+                </td>
+                {!userId && <td className="p-3 text-xs text-slate-300">{emailOf?.(t.user_id) ?? t.user_id.slice(0, 8)}</td>}
+                <td className="p-3">
+                  <Badge variant="outline" className={`text-xs ${t.txn_type === "CREDIT" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-rose-500/40 bg-rose-500/10 text-rose-300"}`}>
+                    {t.txn_type}
+                  </Badge>
+                </td>
+                <td className={`p-3 text-right whitespace-nowrap font-semibold ${t.txn_type === "CREDIT" ? "text-emerald-400" : "text-rose-400"}`}>
+                  {fmt(t.amount, t.currency)}
+                </td>
+                <td className="p-3 text-right whitespace-nowrap text-xs text-slate-400 font-mono">
+                  {fmt(t.balance_before, t.currency)} → {fmt(t.balance_after, t.currency)}
+                </td>
+                <td className="max-w-xs p-3 text-xs text-slate-300">
+                  {t.description}
+                  {t.reversal_reason && t.status === "REVERSED" && (
+                    <div className="text-[10px] text-amber-300">Reversed: {t.reversal_reason}</div>
+                  )}
+                </td>
+                <td className="p-3 text-xs text-slate-400">{t.admin_name}</td>
+                <td className="p-3">
+                  <Badge variant="outline" className={`text-xs ${t.status === "REVERSED" || t.status === "FAILED" ? "border-rose-500/40 bg-rose-500/10 text-rose-300" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"}`}>
+                    {t.status}
+                  </Badge>
+                </td>
+                <td className="p-3">
+                  {t.status === "COMPLETED" && !t.reverses_id && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setRev({ id: t.id, reason: "", key: newKey() })}
+                      className="h-7 text-xs text-slate-400 hover:text-white hover:bg-white/10"
+                    >
+                      <Undo2 className="mr-1 size-3" /> Reverse
+                    </Button>
+                  )}
+                </td>
               </tr>
             ))}
-            {q.data?.rows.length === 0 && <tr><td colSpan={10} className="p-3 text-muted-foreground">No transactions.</td></tr>}
+            {q.data?.rows.length === 0 && (
+              <tr><td colSpan={10} className="p-6 text-center text-slate-400">No transactions found matching filters.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{q.data?.total ?? 0} transactions</span>
+
+      <div className="flex items-center justify-between text-xs text-slate-400">
+        <span>{q.data?.total ?? 0} transactions recorded</span>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+          <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
+            Previous
+          </Button>
           <span>Page {page + 1} of {pages}</span>
-          <Button size="sm" variant="outline" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)}>Next</Button>
+          <Button size="sm" variant="outline" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
+            Next
+          </Button>
         </div>
       </div>
+
       <AlertDialog open={rev !== null} onOpenChange={(o) => { if (!o && !rm.isPending) setRev(null); }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Reverse transaction {rev?.id.slice(0, 8)}?</AlertDialogTitle>
-            <AlertDialogDescription>A new opposite transaction will be recorded and linked. The original stays in the ledger marked REVERSED.</AlertDialogDescription>
+            <AlertDialogTitle className="text-white">Reverse transaction {rev?.id.slice(0, 8)}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-slate-300">
+              A new opposite transaction will be recorded and linked in the ledger. The original stays marked REVERSED.
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          <div><Label className="text-xs">Reason for reversal (required)</Label><Input className="mt-1" maxLength={300} value={rev?.reason ?? ""} onChange={(e) => rev && setRev({ ...rev, reason: e.target.value })} /></div>
+          <div>
+            <Label className="text-xs text-slate-300">Reason for reversal (required)</Label>
+            <Input
+              className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs placeholder:text-slate-500"
+              maxLength={300}
+              value={rev?.reason ?? ""}
+              onChange={(e) => rev && setRev({ ...rev, reason: e.target.value })}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={rm.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={rm.isPending || (rev?.reason.trim().length ?? 0) < 3} onClick={(e) => { e.preventDefault(); if (rev) rm.mutate(rev); }}>{rm.isPending ? "Reversing…" : "Reverse"}</AlertDialogAction>
+            <AlertDialogCancel disabled={rm.isPending} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={rm.isPending || (rev?.reason.trim().length ?? 0) < 3}
+              onClick={(e) => { e.preventDefault(); if (rev) rm.mutate(rev); }}
+              className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs"
+            >
+              {rm.isPending ? "Reversing…" : "Reverse Transaction"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -215,52 +371,69 @@ export function WireReview({ emailOf }: { emailOf: (id: string) => string }) {
   });
 
   const badge = (s: string) =>
-    s === "PENDING" ? <Badge variant="outline" className="border-amber-500 text-amber-600">Pending</Badge>
-    : s === "COMPLETED" ? <Badge variant="outline" className="border-primary text-primary">Completed</Badge>
-    : <Badge variant="outline" className="border-destructive text-destructive">Cancelled</Badge>;
+    s === "PENDING" ? <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300">Pending</Badge>
+    : s === "COMPLETED" ? <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300">Completed</Badge>
+    : <Badge variant="outline" className="border-rose-500/40 bg-rose-500/10 text-rose-300">Cancelled</Badge>;
 
   return (
-    <div className="border border-border bg-card">
-      <div className="border-b border-border p-5">
-        <h3 className="text-lg font-semibold">International wires</h3>
-        <p className="text-sm text-muted-foreground">Review pending wires. Completing releases the wire; cancelling refunds the customer in full.</p>
+    <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-xl overflow-hidden">
+      <div className="border-b border-white/10 p-5 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-base font-semibold text-white font-display">International Wire Authorizations</h3>
+          <p className="text-xs text-slate-400">Review pending cross-border wires. Releasing dispatches funds; cancelling refunds customer in full.</p>
+        </div>
       </div>
-      {wires.isLoading && <p className="p-5 text-muted-foreground">Loading…</p>}
-      {wires.data?.length === 0 && <p className="p-5 text-muted-foreground">No wire transfers yet.</p>}
-      <ul className="divide-y divide-border">
+      {wires.isLoading && <p className="p-5 text-xs text-slate-400">Loading pending wires…</p>}
+      {wires.data?.length === 0 && <p className="p-5 text-xs text-slate-400">No wire transfers currently pending.</p>}
+      <ul className="divide-y divide-white/5">
         {wires.data?.map((w) => (
-          <li key={w.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <li key={w.id} className="flex flex-wrap items-center justify-between gap-3 p-5 hover:bg-white/5 transition-colors">
             <div className="min-w-0">
-              <p className="font-medium">{fmt(Number(w.amount))} → {w.recipient_name} ({w.country}) {badge(w.status)}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="font-semibold text-white">{fmt(Number(w.amount))} → {w.recipient_name} ({w.country}) {badge(w.status)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">
                 {emailOf(w.user_id)} · {w.recipient_bank} · SWIFT {w.swift_bic} · Acct {w.account_number} · Receives {w.currency} · {new Date(w.created_at).toLocaleString()}
-                {w.memo ? ` · ${w.memo}` : ""}
+                {w.memo ? ` · Memo: ${w.memo}` : ""}
               </p>
             </div>
             {w.status === "PENDING" && (
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => setTarget({ wire: w, action: "complete", reason: "" })}>Complete</Button>
-                <Button size="sm" variant="outline" onClick={() => setTarget({ wire: w, action: "cancel", reason: "" })}>Cancel & refund</Button>
+                <Button size="sm" onClick={() => setTarget({ wire: w, action: "complete", reason: "" })} className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">
+                  Release Wire
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setTarget({ wire: w, action: "cancel", reason: "" })} className="rounded-xl border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-semibold">
+                  Cancel &amp; Refund
+                </Button>
               </div>
             )}
           </li>
         ))}
       </ul>
       <AlertDialog open={target !== null} onOpenChange={(o) => { if (!o && !m.isPending) setTarget(null); }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>{target?.action === "complete" ? "Release this wire?" : "Cancel and refund this wire?"}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {target?.action === "complete"
-                ? `The ${target ? fmt(Number(target.wire.amount)) : ""} wire to ${target?.wire.recipient_name} will be marked as sent.`
-                : `The customer will be refunded ${target ? fmt(Number(target.wire.amount)) : ""} and the wire will be cancelled.`}
+            <AlertDialogTitle className="text-white">{target?.action === "complete" ? "Release this international wire?" : "Cancel and refund this wire?"}</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-slate-300">
+              {target?.action === "complete" ? "This will mark the wire as processed and complete." : "This will immediately reverse the debit and credit back the customer's account."}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div><Label className="text-xs">Reason (required, recorded in the activity log)</Label><Input className="mt-1" maxLength={300} value={target?.reason ?? ""} onChange={(e) => target && setTarget({ ...target, reason: e.target.value })} /></div>
+          <div>
+            <Label className="text-xs text-slate-300">Audit reason (required)</Label>
+            <Input
+              className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs placeholder:text-slate-500"
+              maxLength={200}
+              value={target?.reason ?? ""}
+              onChange={(e) => target && setTarget({ ...target, reason: e.target.value })}
+              placeholder="e.g. Verified by officer, requested by sender"
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={m.isPending}>Back</AlertDialogCancel>
-            <AlertDialogAction disabled={m.isPending || (target?.reason.trim().length ?? 0) < 3} onClick={(e) => { e.preventDefault(); if (target) m.mutate(target); }}>
-              {m.isPending ? "Working…" : target?.action === "complete" ? "Release wire" : "Cancel & refund"}
+            <AlertDialogCancel disabled={m.isPending} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={m.isPending || (target?.reason.trim().length ?? 0) < 3}
+              onClick={(e) => { e.preventDefault(); if (target) m.mutate(target); }}
+              className={`rounded-xl text-xs font-semibold ${target?.action === "complete" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-rose-600 hover:bg-rose-500 text-white"}`}
+            >
+              {m.isPending ? "Processing…" : target?.action === "complete" ? "Confirm Release" : "Confirm Cancellation"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
