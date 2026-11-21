@@ -1,11 +1,11 @@
 # Tasks
 
-- [ ] Add simple back and forward navigation for customers and admins.
-- [ ] Show the Eastern Trust Bank logo during initial, route, dashboard, and admin loading.
-- [ ] Expand the admin customer editor to cover all editable profile, login, and security details.
-- [ ] Let admins correct existing transaction dates with validation and an audit reason, without changing financial entries.
-- [ ] Keep each customer's updated profile picture visible after saving, refreshing, and signing in again.
-- [ ] Verify navigation, loading, customer editing, transaction-date editing, and photo persistence; run relevant tests and commit.
+- [x] Add simple back and forward navigation for customers and admins.
+- [x] Show the Eastern Trust Bank logo during initial, route, dashboard, and admin loading.
+- [x] Expand the admin customer editor to cover all editable profile, login, and security details.
+- [x] Let admins correct existing transaction dates with validation and an audit reason, without changing financial entries.
+- [x] Keep each customer's updated profile picture visible after saving, refreshing, and signing in again.
+- [x] Verify navigation, loading, customer editing, transaction-date editing, and photo persistence; run relevant tests and commit.
 
 ## Previously completed
 - [x] Stopped work on the admin transaction date picker at the user's request.
