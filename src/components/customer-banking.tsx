@@ -14,7 +14,7 @@ import { formatTransactionDate } from "@/lib/transaction-date";
 import { cleanAccountNumber, formatAccountNumber, isValidAccountNumber } from "@/lib/account-number";
 
 export type BankAccount = { id: string; account_type: string; name: string; last_four: string; account_number?: string | null; available_balance: number };
-type Txn = { id: string; account_id: string; txn_type: string; amount: number; currency: string; description: string; status: string; created_at: string; transaction_date: string; balance_after: number };
+type Txn = { id: string; account_id: string; txn_type: string; amount: number; currency: string; description: string; status: string; created_at: string; transaction_date: string; balance_after: number | null; pendingIncoming?: boolean };
 const BANK_ROUTING_NUMBER = "021000089";
 const BANK_ADDRESS = "Eastern Trust Bank NA, 100 Wall Street, Suite 2400, New York, NY 10005";
 
@@ -128,12 +128,49 @@ export function CustomerBanking({
         .order("created_at", { ascending: false })
         .limit(100);
       if (filter !== "all") q = q.eq("account_id", filter);
-      const { data, error } = await q;
+      let incomingQ = supabase
+        .from("customer_transfer_requests")
+        .select("id,to_account_id,recipient_user_id,amount,currency,memo,status,created_at")
+        .eq("status", "PENDING")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (filter !== "all") incomingQ = incomingQ.eq("to_account_id", filter);
+
+      const [{ data, error }, { data: incomingRows }, { data: authData }] = await Promise.all([
+        q,
+        incomingQ,
+        supabase.auth.getUser(),
+      ]);
       if (error) {
         setLoadError("Could not load transaction history.");
         return;
       }
-      setTxns((data ?? []).map((t) => ({ ...t, amount: Number(t.amount), balance_after: Number(t.balance_after) })));
+      const myId = authData.user?.id;
+      const posted: Txn[] = (data ?? []).map((t) => ({
+        ...t,
+        amount: Number(t.amount),
+        balance_after: Number(t.balance_after),
+      }));
+      const incoming: Txn[] = (incomingRows ?? [])
+        .filter((r) => Boolean(myId && r.recipient_user_id === myId && r.to_account_id))
+        .map((r) => ({
+          id: `incoming-${r.id}`,
+          account_id: r.to_account_id!,
+          txn_type: "CREDIT",
+          amount: Number(r.amount),
+          currency: r.currency,
+          description: `Incoming Eastern Trust transfer${r.memo ? ` — ${r.memo}` : ""}`,
+          status: "PENDING",
+          created_at: r.created_at,
+          transaction_date: r.created_at.slice(0, 10),
+          balance_after: null,
+          pendingIncoming: true,
+        }));
+      const merged = [...incoming, ...posted].sort((a, b) => {
+        const dateCmp = b.transaction_date.localeCompare(a.transaction_date);
+        return dateCmp !== 0 ? dateCmp : b.created_at.localeCompare(a.created_at);
+      });
+      setTxns(merged);
     } catch {
       setLoadError("Could not load transaction history.");
     } finally {
@@ -280,7 +317,11 @@ export function CustomerBanking({
                 </div>
                 <div className="text-right">
                   <p className={t.txn_type === "CREDIT" ? "font-semibold text-primary" : "font-semibold"}>{hidden ? "••••" : `${t.txn_type === "CREDIT" ? "+" : "−"}${fmt(t.amount, t.currency)}`}</p>
-                  <p className="text-xs text-muted-foreground">Balance {hidden ? "••••" : fmt(t.balance_after, t.currency)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t.pendingIncoming || t.balance_after === null
+                      ? "Pending credit"
+                      : `Balance ${hidden ? "••••" : fmt(t.balance_after, t.currency)}`}
+                  </p>
                 </div>
               </li>
             );

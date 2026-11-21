@@ -576,7 +576,7 @@ export function WireReview({ emailOf }: { emailOf: (id: string) => string }) {
         {wires.data?.map((w) => (
           <li key={w.id} className="flex flex-wrap items-center justify-between gap-3 p-5 hover:bg-white/5 transition-colors">
             <div className="min-w-0">
-              <p className="font-semibold text-white">{fmt(Number(w.amount))} → {w.recipient_name} ({w.country}) {badge(w.status)}</p>
+              <div className="font-semibold text-white flex flex-wrap items-center gap-2"><span>{fmt(Number(w.amount))} → {w.recipient_name} ({w.country})</span> {badge(w.status)}</div>
               <p className="text-xs text-slate-400 mt-0.5">
                 {emailOf(w.user_id)} · {w.recipient_bank} · SWIFT {w.swift_bic} · Acct {w.account_number} · Receives {w.currency} · {new Date(w.created_at).toLocaleString()}
                 {w.memo ? ` · Memo: ${w.memo}` : ""}
