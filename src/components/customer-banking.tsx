@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeftRight, Globe, KeyRound, Receipt, AlertTriangle } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeftRight, Globe, KeyRound, Receipt, AlertTriangle, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { listTransactions } from "@/lib/admin.functions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,13 +61,20 @@ export function CustomerBanking({
   onChange,
   hidden,
   isSuspended = false,
+  customerId,
+  isAdminView = false,
 }: {
   accounts: BankAccount[];
   onChange: () => void;
   hidden: boolean;
   isSuspended?: boolean;
+  customerId?: string;
+  isAdminView?: boolean;
 }) {
+  const listAdminTxns = useServerFn(listTransactions);
   const [txns, setTxns] = useState<Txn[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [mode, setMode] = useState<"transfer" | "pay" | "wire" | null>(null);
   const [filter, setFilter] = useState("all");
   const [hasPin, setHasPin] = useState<boolean | null>(null);
@@ -78,12 +87,64 @@ export function CustomerBanking({
   }, [isSuspended]);
 
   const loadTxns = useCallback(async () => {
-    let q = supabase.from("account_transactions").select("id,account_id,txn_type,amount,currency,description,status,created_at,transaction_date,balance_after").order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).limit(100);
-    if (filter !== "all") q = q.eq("account_id", filter);
-    const { data } = await q;
-    setTxns((data ?? []).map((t) => ({ ...t, amount: Number(t.amount), balance_after: Number(t.balance_after) })));
-  }, [filter]);
-  useEffect(() => { loadTxns(); }, [loadTxns]);
+    setRefreshing(true);
+    setLoadError(null);
+    try {
+      if (isAdminView && customerId) {
+        const res = await listAdminTxns({ data: { userId: customerId, type: "ALL", status: "ALL", adminName: "", from: "", to: "", page: 0 } });
+        const rows = (res.rows ?? [])
+          .filter((t) => filter === "all" || t.account_id === filter)
+          .map((t) => ({
+            id: t.id,
+            account_id: t.account_id,
+            txn_type: t.txn_type,
+            amount: Number(t.amount),
+            currency: t.currency,
+            description: t.description,
+            status: t.status,
+            created_at: t.created_at,
+            transaction_date: t.transaction_date,
+            balance_after: Number(t.balance_after),
+          }));
+        setTxns(rows);
+        return;
+      }
+
+      let q = supabase
+        .from("account_transactions")
+        .select("id,account_id,txn_type,amount,currency,description,status,created_at,transaction_date,balance_after")
+        .order("transaction_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (filter !== "all") q = q.eq("account_id", filter);
+      const { data, error } = await q;
+      if (error) {
+        setLoadError("Could not load transaction history.");
+        return;
+      }
+      setTxns((data ?? []).map((t) => ({ ...t, amount: Number(t.amount), balance_after: Number(t.balance_after) })));
+    } catch {
+      setLoadError("Could not load transaction history.");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [filter, isAdminView, customerId, listAdminTxns]);
+
+  useEffect(() => { loadTxns(); }, [loadTxns, accounts]);
+
+  useEffect(() => {
+    if (isAdminView) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadTxns();
+    };
+    const onFocus = () => loadTxns();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [isAdminView, loadTxns]);
 
   useEffect(() => {
     (async () => {
@@ -155,27 +216,40 @@ export function CustomerBanking({
 
       <div className="mt-12 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-2xl">Transaction history</h2>
-        <select aria-label="Filter by account" className={selectCls + " max-w-xs"} value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="all">All accounts</option>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} •••• {a.last_four}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <select aria-label="Filter by account" className={selectCls + " max-w-xs"} value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="all">All accounts</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} •••• {a.last_four}</option>)}
+          </select>
+          <Button type="button" variant="outline" size="icon" aria-label="Refresh transaction history" onClick={() => { onChange(); loadTxns(); }} disabled={refreshing}>
+            <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
       <div className="mt-5 border border-border bg-card">
-        {txns === null && <p className="p-6 text-muted-foreground">Loading…</p>}
-        {txns?.length === 0 && <p className="p-6 text-muted-foreground">No transactions yet.</p>}
+        {loadError && <p className="p-6 text-sm text-destructive">{loadError}</p>}
+        {!loadError && txns === null && <p className="p-6 text-muted-foreground">Loading…</p>}
+        {!loadError && txns?.length === 0 && <p className="p-6 text-muted-foreground">No transactions yet.</p>}
         <ul className="divide-y divide-border">
-          {txns?.map((t) => (
-            <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
-              <div className="min-w-0">
-                <p className="font-medium">{t.description}</p>
-                <p className="text-xs text-muted-foreground">{formatTransactionDate(t.transaction_date)} · {name(t.account_id)}{t.status === "REVERSED" ? " · Reversed" : ""}</p>
-              </div>
-              <div className="text-right">
-                <p className={t.txn_type === "CREDIT" ? "font-semibold text-primary" : "font-semibold"}>{hidden ? "••••" : `${t.txn_type === "CREDIT" ? "+" : "−"}${fmt(t.amount, t.currency)}`}</p>
-                <p className="text-xs text-muted-foreground">Balance {hidden ? "••••" : fmt(t.balance_after, t.currency)}</p>
-              </div>
-            </li>
-          ))}
+          {txns?.map((t) => {
+            const acctLabel = name(t.account_id);
+            return (
+              <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
+                <div className="min-w-0">
+                  <p className="font-medium">{t.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatTransactionDate(t.transaction_date)}
+                    {acctLabel ? ` · ${acctLabel}` : ""}
+                    {t.status === "REVERSED" ? " · Reversed" : ""}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={t.txn_type === "CREDIT" ? "font-semibold text-primary" : "font-semibold"}>{hidden ? "••••" : `${t.txn_type === "CREDIT" ? "+" : "−"}${fmt(t.amount, t.currency)}`}</p>
+                  <p className="text-xs text-muted-foreground">Balance {hidden ? "••••" : fmt(t.balance_after, t.currency)}</p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
 

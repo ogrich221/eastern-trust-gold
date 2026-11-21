@@ -925,6 +925,7 @@ function useAdminAction<T>(fn: (args: { data: T }) => Promise<unknown>, success:
       toast.success(success);
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
       qc.invalidateQueries({ queryKey: ["admin-audit"] });
+      qc.invalidateQueries({ queryKey: ["admin-txns"] });
       after?.();
     },
     onError: (e) => toast.error(errMsg(e)),
@@ -2133,22 +2134,25 @@ function QuickCreditDebitModal({
   const [creatingAcct, setCreatingAcct] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
     if (customer?.accounts && customer.accounts.length > 0) {
       setSelectedAccountId(customer.accounts[0]!.id);
       setAmount("");
-      setDescription(type === "CREDIT" ? "Administrative credit / deposit" : "Administrative debit / fee");
+      setType("CREDIT");
+      setDescription("Administrative credit / deposit");
       setReference("");
       setTransactionDate(currentTransactionDate());
     } else {
       setSelectedAccountId("");
     }
-  }, [customer, open, type]);
+  }, [customer?.id, open]);
 
   if (!customer) return null;
 
   const currentAccount = customer.accounts.find((a) => a.id === selectedAccountId) ?? customer.accounts[0];
-  const numAmount = Number(amount.replace(/,/g, "").trim());
-  const validAmount = /^\d{1,10}(\.\d{1,2})?$/.test(amount.replace(/,/g, "").trim()) && numAmount > 0;
+  const cleanAmount = amount.replace(/,/g, "").trim();
+  const numAmount = Number(cleanAmount);
+  const validAmount = /^\d{1,10}(\.\d{1,2})?$/.test(cleanAmount) && numAmount > 0;
 
   const before = Number(currentAccount?.available_balance || 0);
   const after = currentAccount ? before + (type === "CREDIT" ? numAmount : -numAmount) : 0;
@@ -2201,7 +2205,7 @@ function QuickCreditDebitModal({
         data: {
           accountId: currentAccount.id,
           type,
-          amount: String(numAmount),
+          amount: cleanAmount,
           currency: currentAccount.currency || "USD",
           description: description.trim(),
           reference: reference.trim() || undefined,
@@ -2450,6 +2454,7 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
   const [directAvailable, setDirectAvailable] = useState(String(a.available_balance));
   const [directCurrent, setDirectCurrent] = useState(String(a.current_balance));
   const [directReason, setDirectReason] = useState("Administrative balance adjustment");
+  const [directDate, setDirectDate] = useState(currentTransactionDate);
 
   useEffect(() => {
     setDirectAvailable(String(a.available_balance));
@@ -2579,12 +2584,17 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
                 toast.error("Please enter valid numbers for balances");
                 return;
               }
+              if (!isValidTransactionDate(directDate)) {
+                toast.error("Please choose a valid transaction date");
+                return;
+              }
               directM.mutate(
                 {
                   accountId: a.id,
                   available_balance: avail,
                   current_balance: curr,
                   reason: directReason.trim() || "Administrative balance adjustment",
+                  transactionDate: directDate,
                 },
                 {
                   onSuccess: () => setAdjustOpen(false),
@@ -2615,6 +2625,17 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
                 inputMode="decimal"
                 value={directCurrent}
                 onChange={(e) => setDirectCurrent(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor={`direct-date-${a.id}`} className="text-xs font-semibold text-slate-300">Transaction Date</Label>
+              <Input
+                id={`direct-date-${a.id}`}
+                type="date"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs"
+                value={directDate}
+                onChange={(e) => setDirectDate(e.target.value)}
                 required
               />
             </div>

@@ -928,6 +928,8 @@ export function UserProfile({
               accounts={visibleAccounts}
               hidden={hideBalances}
               isSuspended={isSuspended}
+              customerId={user.id}
+              isAdminView={isAdminView}
               onChange={() => onRefresh?.()}
             />
           </div>
@@ -1295,6 +1297,8 @@ export function UserProfile({
             accounts={accounts}
             hidden={hideBalances}
             isSuspended={isSuspended}
+            customerId={user.id}
+            isAdminView={isAdminView}
             onChange={() => onRefresh?.()}
           />
         </TabsContent>

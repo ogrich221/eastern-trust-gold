@@ -514,10 +514,23 @@ export const setDirectAccountBalance = createServerFn({ method: "POST" })
     available_balance: z.number().finite().min(-1e9).max(1e9),
     current_balance: z.number().finite().min(-1e9).max(1e9).optional(),
     reason: z.string().trim().max(200).default("Administrative balance adjustment"),
+    transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid transaction date").refine(isValidTransactionDate, "Choose a valid transaction date").optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { admin, log } = await assertAdmin(context);
     const curr = data.current_balance ?? data.available_balance;
+    const { data: existing, error: fetchErr } = await admin
+      .from("bank_accounts")
+      .select("id, user_id, name, account_type, currency, available_balance, current_balance")
+      .eq("id", data.accountId)
+      .single();
+    if (fetchErr || !existing) throw new Error("Account not found.");
+
+    const before = Number(existing.available_balance || 0);
+    const delta = Math.round((data.available_balance - before) * 100) / 100;
+    const txnDate = data.transactionDate ?? new Date().toISOString().slice(0, 10);
+    const cleanReason = data.reason.trim().length >= 3 ? data.reason.trim() : "Administrative balance adjustment";
+
     const { data: row, error } = await admin
       .from("bank_accounts")
       .update({ available_balance: data.available_balance, current_balance: curr })
@@ -525,14 +538,43 @@ export const setDirectAccountBalance = createServerFn({ method: "POST" })
       .select("user_id, name, account_type")
       .single();
     if (error) throw new Error("Could not update account balance");
+
+    let txnId: string | null = null;
+    if (delta !== 0) {
+      const { data: insertedTxn, error: txnErr } = await admin
+        .from("account_transactions")
+        .insert({
+          account_id: existing.id,
+          user_id: existing.user_id,
+          txn_type: delta > 0 ? "CREDIT" : "DEBIT",
+          amount: Math.abs(delta),
+          currency: existing.currency || "USD",
+          balance_before: before,
+          balance_after: data.available_balance,
+          description: cleanReason,
+          admin_name: context.adminName,
+          idempotency_key: crypto.randomUUID(),
+          transaction_date: txnDate,
+        })
+        .select("id")
+        .single();
+      if (txnErr) {
+        throw new Error(`Balance updated, but could not record history entry: ${txnErr.message}`);
+      }
+      txnId = insertedTxn?.id ?? null;
+    }
+
     await log("adjust_balance", row.user_id, {
       accountId: data.accountId,
       accountName: row.name,
+      transactionId: txnId,
+      previousAvailable: before,
       newAvailable: data.available_balance,
       newCurrent: curr,
-      reason: data.reason,
+      reason: cleanReason,
+      transaction_date: txnDate,
     });
-    return { ok: true };
+    return { ok: true, transactionId: txnId };
   });
 
 const TXN_ERRORS: Record<string, string> = {

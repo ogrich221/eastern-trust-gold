@@ -94,6 +94,19 @@ function Dashboard() {
     load();
   }, [user, tick]);
 
+  useEffect(() => {
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") setTick((t) => t + 1);
+    };
+    const onFocus = () => setTick((t) => t + 1);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
+  }, []);
+
   return (
     <main className="min-h-[calc(100vh-5rem)] py-10">
       <div className="mx-auto max-w-7xl px-5 lg:px-8">
