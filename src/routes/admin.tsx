@@ -1664,32 +1664,6 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
             </AlertDialog>
           </section>
         </TabsContent>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" className="mt-4">
-                  <Trash2 className="mr-1.5 size-3.5" /> Delete Customer Permanently
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete customer {c.email}?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Type <strong>DELETE</strong> to confirm permanent erasure.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" />
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    disabled={confirmText !== "DELETE" || deleteM.isPending}
-                    onClick={() => deleteM.mutate({ userId: c.id })}
-                  >
-                    Delete Forever
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </section>
-        </TabsContent>
       </Tabs>
 
       {/* Authorized Support "Log in as user" Dialog */}
@@ -2043,7 +2017,6 @@ function EditContactInfoDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
   );
 }
 
@@ -2835,7 +2808,6 @@ function NewCustomerDialog() {
       </DialogContent>
     </Dialog>
   );
-}
 }
 
 function PurgeTestrunDialog({ onPurged }: { onPurged: () => void }) {

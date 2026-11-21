@@ -497,8 +497,8 @@ export const postTransaction = createServerFn({ method: "POST" })
       } catch {}
     }
 
-    // 1. Try calling the PostgreSQL admin_post_transaction RPC first
-    const { data: id, error } = await admin.rpc("admin_post_transaction", {
+    // 1. Try calling the PostgreSQL admin_post_transaction_with_date RPC first
+    const { data: id, error } = await admin.rpc("admin_post_transaction_with_date", {
       _account_id: data.accountId,
       _type: data.type,
       _amount: numAmount,
