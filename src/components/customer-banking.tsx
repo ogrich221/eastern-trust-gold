@@ -18,7 +18,10 @@ const errors: Record<string, string> = {
   INSUFFICIENT_FUNDS: "There isn't enough money in that account.",
   INVALID_AMOUNT: "Enter a valid amount (up to 2 decimal places).",
   RECIPIENT_NOT_FOUND: "We couldn't find an Eastern Trust customer with that email.",
-  SAME_ACCOUNT: "Choose two different accounts.",
+  SAME_ACCOUNT: "You can't transfer to your own account.",
+  ACCOUNT_NOT_FOUND: "Your active checking account wasn't found. Please refresh and try again.",
+  ARCHIVED_ACCOUNT_LOCKED: "This account is archived and cannot be used for transfers.",
+  PROFILE_NOT_FOUND: "We couldn't find your profile. Please refresh and try again.",
   SOURCE_NOT_ALLOWED: "You can't send money from that account.",
   INVALID_PAYEE: "Enter who you're paying.",
   CURRENCY_MISMATCH: "Those accounts use different currencies.",
@@ -163,12 +166,21 @@ export function CustomerBanking({
     })();
   }, [isSuspended]);
 
-  const openMode = (m: "transfer" | "pay" | "wire") => {
+  const openMode = async (m: "transfer" | "pay" | "wire") => {
     if (userSuspended) {
       toast.error("Transfers and payments are restricted while your account is suspended. Please contact customer support.");
       return;
     }
-    if (hasPin === false) { setPendingMode(m); setPinOpen(true); return; }
+    let pinReady = hasPin;
+    if (pinReady === null) {
+      const { data: u } = await supabase.auth.getUser();
+      if (u.user) {
+        const { data } = await supabase.from("profiles").select("transfer_pin_hash").eq("id", u.user.id).maybeSingle();
+        pinReady = Boolean(data?.transfer_pin_hash);
+        setHasPin(pinReady);
+      }
+    }
+    if (pinReady === false) { setPendingMode(m); setPinOpen(true); return; }
     setMode(m);
   };
 
@@ -325,13 +337,14 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
   }, [mode]);
 
   const amt = Number(amount.replace(/,/g, "").trim());
+  const cleanEmail = email.trim();
   const src = accounts.find((a) => a.id === from);
   const review = () => {
     setErr("");
     if (isSuspended) return setErr("Transfers and payments are restricted while your account is suspended.");
     if (!src) return setErr("Choose an account.");
     if (!(amt > 0) || Math.round(amt * 100) !== amt * 100) return setErr(errors["INVALID_AMOUNT"]!);
-    if (mode === "transfer" && !/^\S+@\S+\.\S+$/.test(email)) return setErr("Enter the recipient's email.");
+    if (mode === "transfer" && !/^\S+@\S+\.\S+$/.test(cleanEmail)) return setErr("Enter the recipient's email.");
     if (mode === "pay" && payee.trim().length < 2) return setErr(errors["INVALID_PAYEE"]!);
     setStep("confirm");
   };
@@ -340,13 +353,14 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
     setBusy(true); setErr("");
     const pinHash = await hashPin(pin);
     const { error } = mode === "transfer"
-      ? await supabase.rpc("customer_transfer", { _from: from, _to_account: (null as unknown as string), _to_email: email, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash })
+      ? await supabase.rpc("customer_transfer", { _from: from, _to_account: (null as unknown as string), _to_email: cleanEmail, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash })
       : await supabase.rpc("customer_payment", { _from: from, _payee: payee, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash });
     setBusy(false);
     if (error) { setErr(friendly(error.message)); if (error.message.includes("PIN_INVALID")) return; setStep("form"); return; }
+    toast.success(mode === "transfer" ? `Transfer of ${fmt(amt)} sent to ${cleanEmail}.` : `Payment of ${fmt(amt)} sent to ${payee.trim()}.`);
     onDone();
   };
-  const destination = mode === "pay" ? payee : email;
+  const destination = mode === "pay" ? payee : cleanEmail;
 
   return (
     <Dialog open={mode !== null} onOpenChange={(o) => !o && onClose()}>
@@ -437,6 +451,7 @@ function WireDialog({ open, accounts, isSuspended = false, onClose, onDone }: { 
     });
     setBusy(false);
     if (error) { setErr(friendly(error.message)); if (error.message.includes("PIN_INVALID")) return; setStep("form"); return; }
+    toast.success(`Wire request for ${fmt(amt)} to ${recipient.trim()} submitted.`);
     onDone();
   };
 

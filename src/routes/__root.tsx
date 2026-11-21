@@ -16,6 +16,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
 import { BankLogo, HistoryNavigation, RouteLoadingIndicator } from "@/components/bank-chrome";
 
 function NotFoundComponent() {
@@ -290,6 +291,7 @@ function RootComponent() {
         </header>
       )}
       <Outlet />
+      <Toaster />
     </QueryClientProvider>
   );
 }

@@ -113,6 +113,20 @@
       "when": 1795282902568,
       "tag": "0015_single_active_customer_account",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795284242766,
+      "tag": "0016_fix_customer_to_customer_transfers",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795284512444,
+      "tag": "0017_fix_set_transfer_pin_profile_defaults",
+      "breakpoints": true
     }
   ]
 }
