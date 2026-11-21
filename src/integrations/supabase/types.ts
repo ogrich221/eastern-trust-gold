@@ -132,6 +132,7 @@ export type Database = {
           currency: string
           current_balance: number
           id: string
+          is_active: boolean
           last_four: string
           name: string
           user_id: string
@@ -145,6 +146,7 @@ export type Database = {
           currency?: string
           current_balance?: number
           id?: string
+          is_active?: boolean
           last_four: string
           name: string
           user_id: string
@@ -158,6 +160,7 @@ export type Database = {
           currency?: string
           current_balance?: number
           id?: string
+          is_active?: boolean
           last_four?: string
           name?: string
           user_id?: string

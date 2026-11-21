@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, type ProfileAccount, type ProfileData } from "@/components/user-profile";
 import { BankLoadingScreen } from "@/components/bank-chrome";
+import { usableCustomerAccounts } from "@/lib/customer-account";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   staticData: { sitemap: false },
@@ -19,7 +20,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-const order = ["checking", "savings", "credit", "investment"];
 
 function Dashboard() {
   const { user } = Route.useRouteContext();
@@ -76,10 +76,10 @@ function Dashboard() {
       const { data } = await supabase
         .from("bank_accounts")
         .select("id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .eq("is_active", true);
 
-      const list = ((data ?? []) as ProfileAccount[])
-        .filter((a) => a.account_type !== "savings" && a.account_type !== "investment")
+      const list = usableCustomerAccounts((data ?? []) as ProfileAccount[])
         .map((a) => ({
           ...a,
           available_balance: Number(a.available_balance),
@@ -87,7 +87,6 @@ function Dashboard() {
           credit_limit: a.credit_limit === null ? null : Number(a.credit_limit),
         }));
 
-      list.sort((a, b) => order.indexOf(a.account_type) - order.indexOf(b.account_type));
       setAccounts(list);
     };
 

@@ -2,6 +2,7 @@ import { createServerFn, createMiddleware } from "@tanstack/react-start";
 import { getRequestHeader, setResponseHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { isValidTransactionDate } from "./transaction-date";
+import { CUSTOMER_ACCOUNT_TYPES } from "./customer-account";
 
 const NIL = "00000000-0000-0000-0000-000000000000";
 
@@ -98,7 +99,7 @@ export const listCustomers = createServerFn({ method: "GET" })
       console.warn("Could not list users via Supabase auth admin API:", error?.message);
       const [{ data: profiles }, { data: accounts }] = await Promise.all([
         admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two,avatar_url"),
-        admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft"),
+        admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft").eq("is_active", true),
       ]);
 
       if (profiles && profiles.length > 0) {
@@ -125,7 +126,7 @@ export const listCustomers = createServerFn({ method: "GET" })
     }
     const [{ data: profiles }, { data: accounts }, { data: roles }] = await Promise.all([
       admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two,avatar_url"),
-      admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft"),
+      admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft").eq("is_active", true),
       admin.from("user_roles").select("user_id,role"),
     ]);
 
@@ -1191,31 +1192,9 @@ export const createCustomer = createServerFn({ method: "POST" })
       });
     } catch {}
 
-    // 5. Provision Gold Rewards Card
-    const last_four_credit = String(Math.floor(1000 + Math.random() * 9000));
-    try {
-      await admin.from("bank_accounts").insert({
-        user_id: userId,
-        account_type: "credit",
-        name: "Gold Rewards Card",
-        last_four: last_four_credit,
-        available_balance: 0,
-        current_balance: 0,
-        credit_limit: 0,
-        currency: "USD",
-        allow_overdraft: false,
-      });
-    } catch {}
-
     // 6. Attempt email confirmation
     try {
       await admin.auth.admin.updateUserById(userId, { email_confirm: true });
-    } catch {}
-
-    // 7. Enforce 0.00 balance on all accounts and remove savings/investment
-    try {
-      await admin.from("bank_accounts").update({ available_balance: 0, current_balance: 0 }).eq("user_id", userId);
-      await admin.from("bank_accounts").delete().eq("user_id", userId).in("account_type", ["savings", "investment"]);
     } catch {}
 
     await log("create_customer", userId, { email, name: `${p.first_name} ${p.last_name}` });
@@ -1270,7 +1249,7 @@ export const confirmCustomerEmail = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const ACCOUNT_TYPES = ["checking", "savings", "credit", "investment"] as const;
+const ACCOUNT_TYPES = CUSTOMER_ACCOUNT_TYPES;
 
 export const addCustomerAccount = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
@@ -1282,8 +1261,11 @@ export const addCustomerAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { admin, log } = await assertAdmin(context);
     const { userId, ...fields } = data;
+    const { count, error: countError } = await admin.from("bank_accounts").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_active", true);
+    if (countError) throw new Error("Could not check customer account");
+    if (count) throw new Error("Each customer can have only one account");
     const last_four = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-    const { error } = await admin.from("bank_accounts").insert({ user_id: userId, last_four, ...fields, credit_limit: fields.account_type === "credit" ? fields.credit_limit : null });
+    const { error } = await admin.from("bank_accounts").insert({ user_id: userId, last_four, ...fields, credit_limit: null });
     if (error) throw new Error(error.code === "23505" ? "This customer already has that type of account" : "Could not add account");
     await log("add_account", userId, fields);
     return { ok: true };
@@ -1305,10 +1287,10 @@ export const removeCustomerAccount = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ accountId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { admin, log } = await assertAdmin(context);
-    const { data: row, error } = await admin.from("bank_accounts").delete().eq("id", data.accountId).select("user_id,account_type,name").single();
-    if (error) throw new Error("Could not remove account");
-    await log("remove_account", row.user_id, { account: row.name });
-    return { ok: true };
+    const { data: account, error: readError } = await admin.from("bank_accounts").select("is_active").eq("id", data.accountId).single();
+    if (readError) throw new Error("Could not check account");
+    if (account.is_active) throw new Error("The customer's only account cannot be removed");
+    throw new Error("Archived accounts are retained to preserve balances and history");
   });
 
 export const signInAsCustomer = createServerFn({ method: "POST" })
@@ -1372,7 +1354,7 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { admin } = await assertAdmin(context);
     const [{ data: accounts }, { data: users }, { data: txns }] = await Promise.all([
-      admin.from("bank_accounts").select("account_type,available_balance,current_balance,credit_limit"),
+      admin.from("bank_accounts").select("account_type,available_balance,current_balance,credit_limit").eq("is_active", true),
       admin.auth.admin.listUsers({ perPage: 1000 }),
       admin.from("account_transactions").select("amount,txn_type,created_at").order("created_at", { ascending: false }).limit(200),
     ]);
@@ -1489,11 +1471,7 @@ export const registerCustomerPublic = createServerFn({ method: "POST" })
         });
       } catch {}
 
-      // Enforce 0.00 balance on all accounts and remove savings/investment
-      try {
-        await supabaseAdmin.from("bank_accounts").update({ available_balance: 0, current_balance: 0 }).eq("user_id", userId);
-        await supabaseAdmin.from("bank_accounts").delete().eq("user_id", userId).in("account_type", ["savings", "investment"]);
-      } catch {}
+
     }
 
     return { ok: true, userId };

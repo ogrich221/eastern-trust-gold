@@ -55,6 +55,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CustomerBanking } from "./customer-banking";
 import { AvatarModal } from "./avatar-modal";
+import { usableCustomerAccounts } from "@/lib/customer-account";
 
 export type ProfileAccount = {
   id: string;
@@ -318,9 +319,9 @@ export function UserProfile({
     setIsAvatarDialogOpen(true);
   };
 
-  // Filter visible accounts (High-Yield Savings & Wealth Portfolio removed per requirements)
+  // Financial actions use only the customer's remaining active account.
   const visibleAccounts = useMemo(
-    () => accounts.filter((a) => a.account_type !== "savings" && a.account_type !== "investment"),
+    () => usableCustomerAccounts(accounts),
     [accounts]
   );
 
@@ -337,14 +338,6 @@ export function UserProfile({
       visibleAccounts
         .filter((a) => a.account_type === "checking")
         .reduce((sum, a) => sum + (a.available_balance || 0), 0),
-    [visibleAccounts]
-  );
-
-  const totalCardOwed = useMemo(
-    () =>
-      visibleAccounts
-        .filter((a) => a.account_type === "credit")
-        .reduce((sum, a) => sum + (a.current_balance || 0), 0),
     [visibleAccounts]
   );
 
@@ -571,7 +564,7 @@ export function UserProfile({
       )}
 
       {/* Financial Snapshot Summary Ribbon */}
-      <section aria-label="Balance summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Balance summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -601,7 +594,7 @@ export function UserProfile({
               {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4 text-primary" />}
             </button>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Across all your accounts</p>
+          <p className="mt-1 text-xs text-muted-foreground">Your checking account</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between">
@@ -633,37 +626,6 @@ export function UserProfile({
             </button>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Immediate spend & transfer funds</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Card Balance / Credit
-            </p>
-            <button
-              type="button"
-              onClick={() => setHideBalances(!hideBalances)}
-              className="text-muted-foreground hover:text-primary transition-colors p-1 -mr-1 -mt-1 rounded hover:bg-muted/60"
-              title={hideBalances ? "Show balance" : "Hide balance"}
-              aria-label={hideBalances ? "Show balance" : "Hide balance"}
-            >
-              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4 text-muted-foreground" />}
-            </button>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <p className="text-2xl font-bold text-foreground font-display">
-              {hideBalances ? "••••••••" : formatCurrency(totalCardOwed)}
-            </p>
-            <button
-              type="button"
-              onClick={() => setHideBalances(!hideBalances)}
-              className="text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-muted/60"
-              title={hideBalances ? "Show balance" : "Hide balance"}
-              aria-label={hideBalances ? "Show balance" : "Hide balance"}
-            >
-              {hideBalances ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">Gold Rewards statement owed</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between">
@@ -753,7 +715,7 @@ export function UserProfile({
           <div>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold tracking-tight">Accounts & Balances</h2>
+                <h2 className="text-xl font-bold tracking-tight">Account & Balance</h2>
                 <p className="text-xs text-muted-foreground">
                   Official routing number: <strong className="text-foreground">021000089</strong> (Eastern Trust Bank NA)
                 </p>
@@ -769,7 +731,7 @@ export function UserProfile({
               </Button>
             </div>
 
-            <div className="mt-4 grid gap-5 md:grid-cols-2">
+            <div className="mt-4 grid gap-5">
               {visibleAccounts.map((a) => {
                 const config = ACCOUNT_TYPE_CONFIG[a.account_type] || {
                   label: a.name,
@@ -1624,7 +1586,7 @@ export function UserProfile({
               </Button>
             </div>
 
-            <div className="mt-4 grid gap-5 md:grid-cols-2">
+            <div className="mt-4 grid gap-5">
               {/* IRS Direct Deposit Routing Box */}
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
                 <div className="flex items-center gap-2">

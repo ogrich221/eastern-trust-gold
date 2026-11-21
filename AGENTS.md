@@ -14,3 +14,5 @@
 - Admin portal (/admin) uses its own username/password login (ADMIN_USERNAME/ADMIN_PASSWORD secrets, HMAC-signed HttpOnly cookie), independent of customer accounts — owner wants staff access separate from customer email logins.
 
 - Sitemap is router-derived: every route sets staticData.sitemap (true/false/"exclude-subtree") because the sitemap is generated from route decisions.
+
+- Use `bank_accounts.is_active` and a partial unique index to distinguish usable accounts from archived records; preserve archived balances and ledger references instead of deleting financial history.

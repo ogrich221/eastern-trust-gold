@@ -1,5 +1,8 @@
 # Tasks
 
+- [x] Keep exactly one usable account per customer, preserving historical records and balances safely.
+- [x] Align admin and customer credit, debit, transfer, and date-editing controls; verify and commit.
+
 - [x] Add simple back and forward navigation for customers and admins.
 - [x] Show the Eastern Trust Bank logo during initial, route, dashboard, and admin loading.
 - [x] Expand the admin customer editor to cover all editable profile, login, and security details.

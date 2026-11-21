@@ -173,7 +173,7 @@ export function CustomerBanking({
   };
 
   const done = () => { setMode(null); onChange(); loadTxns(); };
-  const name = (id: string) => { const a = accounts.find((x) => x.id === id); return a ? `${a.name} •••• ${a.last_four}` : ""; };
+  const name = (id: string) => { const a = accounts.find((x) => x.id === id); return a ? `${a.name} •••• ${a.last_four}` : "Archived account"; };
 
   return (
     <>
@@ -309,8 +309,6 @@ function PinField({ pin, setPin }: { pin: string; setPin: (v: string) => void })
 function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: { mode: "transfer" | "pay" | null; accounts: BankAccount[]; isSuspended?: boolean; onClose: () => void; onDone: () => void }) {
   const sources = accounts.filter((a) => (mode === "pay" ? a.account_type !== "investment" : ["checking", "savings"].includes(a.account_type)));
   const [from, setFrom] = useState("");
-  const [toKind, setToKind] = useState<"own" | "customer">("own");
-  const [to, setTo] = useState("");
   const [email, setEmail] = useState("");
   const [payee, setPayee] = useState("");
   const [amount, setAmount] = useState("");
@@ -322,7 +320,7 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
   const [key, setKey] = useState("");
 
   useEffect(() => {
-    if (mode) { setFrom(sources[0]?.id ?? ""); setTo(""); setEmail(""); setPayee(""); setAmount(""); setMemo(""); setPin(""); setStep("form"); setErr(""); setKey(crypto.randomUUID()); }
+    if (mode) { setFrom(sources[0]?.id ?? ""); setEmail(""); setPayee(""); setAmount(""); setMemo(""); setPin(""); setStep("form"); setErr(""); setKey(crypto.randomUUID()); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
@@ -333,8 +331,7 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
     if (isSuspended) return setErr("Transfers and payments are restricted while your account is suspended.");
     if (!src) return setErr("Choose an account.");
     if (!(amt > 0) || Math.round(amt * 100) !== amt * 100) return setErr(errors["INVALID_AMOUNT"]!);
-    if (mode === "transfer" && toKind === "own" && !to) return setErr("Choose where to send it.");
-    if (mode === "transfer" && toKind === "customer" && !/^\S+@\S+\.\S+$/.test(email)) return setErr("Enter the recipient's email.");
+    if (mode === "transfer" && !/^\S+@\S+\.\S+$/.test(email)) return setErr("Enter the recipient's email.");
     if (mode === "pay" && payee.trim().length < 2) return setErr(errors["INVALID_PAYEE"]!);
     setStep("confirm");
   };
@@ -343,20 +340,20 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
     setBusy(true); setErr("");
     const pinHash = await hashPin(pin);
     const { error } = mode === "transfer"
-      ? await supabase.rpc("customer_transfer", { _from: from, _to_account: toKind === "own" ? to : (null as unknown as string), _to_email: toKind === "customer" ? email : (null as unknown as string), _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash })
+      ? await supabase.rpc("customer_transfer", { _from: from, _to_account: (null as unknown as string), _to_email: email, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash })
       : await supabase.rpc("customer_payment", { _from: from, _payee: payee, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash });
     setBusy(false);
     if (error) { setErr(friendly(error.message)); if (error.message.includes("PIN_INVALID")) return; setStep("form"); return; }
     onDone();
   };
-  const destination = mode === "pay" ? payee : toKind === "own" ? accounts.find((a) => a.id === to)?.name ?? "" : email;
+  const destination = mode === "pay" ? payee : email;
 
   return (
     <Dialog open={mode !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{mode === "pay" ? "Pay a bill" : "Domestic transfer"}</DialogTitle>
-          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Send money within the US — between your own accounts or to another Eastern Trust customer by email."}</DialogDescription>
+          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Send money to another Eastern Trust customer by email."}</DialogDescription>
         </DialogHeader>
         {step === "form" ? (
           <div className="grid gap-4">
@@ -366,19 +363,9 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
               </select></div>
             {mode === "transfer" ? (
               <>
-                <div className="grid gap-2"><Label htmlFor="kind">To</Label>
-                  <select id="kind" className={selectCls} value={toKind} onChange={(e) => setToKind(e.target.value as "own" | "customer")}>
-                    <option value="own">One of my accounts</option>
-                    <option value="customer">Another Eastern Trust customer</option>
-                  </select></div>
-                {toKind === "own" ? (
-                  <select aria-label="Destination account" className={selectCls} value={to} onChange={(e) => setTo(e.target.value)}>
-                    <option value="">Choose account…</option>
-                    {accounts.filter((a) => a.id !== from).map((a) => <option key={a.id} value={a.id}>{a.name} •••• {a.last_four}</option>)}
-                  </select>
-                ) : (
-                  <Input aria-label="Recipient email" type="email" placeholder="Recipient's email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                )}
+                <div className="grid gap-2"><Label htmlFor="recipient-email">Recipient email</Label>
+                  <Input id="recipient-email" aria-label="Recipient email" type="email" placeholder="Recipient's email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
               </>
             ) : (
               <div className="grid gap-2"><Label htmlFor="payee">Pay to</Label><Input id="payee" maxLength={80} placeholder="e.g. City Electric" value={payee} onChange={(e) => setPayee(e.target.value)} /></div>

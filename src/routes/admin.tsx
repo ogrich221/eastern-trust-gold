@@ -86,7 +86,6 @@ import {
   confirmCustomerEmail,
   addCustomerAccount,
   renameCustomerAccount,
-  removeCustomerAccount,
   signInAsCustomer,
   signOutCustomer,
   saveSupabaseServiceKey,
@@ -1165,11 +1164,11 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               <p className="mt-0.5 text-[11px] text-slate-400">Checking available</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-lg">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Active Credit Line</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Ledger Balance</span>
               <p className="mt-1 text-2xl font-bold font-display text-white">
-                {money(c.accounts.filter(a => a.account_type === 'credit').reduce((s, a) => s + (a.current_balance || 0), 0))}
+                {money(c.accounts.reduce((s, a) => s + (a.current_balance || 0), 0))}
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-400">Card balance outstanding</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Checking ledger balance</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl p-5 shadow-lg">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Accounts Linked</span>
@@ -1373,7 +1372,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                 <AccountEditor key={a.id} a={a} />
               ))}
             </div>
-            <AddAccount userId={c.id} existing={c.accounts.map((a) => a.account_type)} />
+            {c.accounts.length === 0 && <AddAccount userId={c.id} />}
           </div>
         </TabsContent>
 
@@ -2444,7 +2443,6 @@ function QuickCreditDebitModal({
 function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
   const m = useAdminAction(useServerFn(updateAccountBalance), "Account settings saved");
   const renameM = useAdminAction(useServerFn(renameCustomerAccount), "Account details updated");
-  const removeM = useAdminAction(useServerFn(removeCustomerAccount), "Account removed");
   const directM = useAdminAction(useServerFn(setDirectAccountBalance), "Account balance adjusted");
   const [limit, setLimit] = useState(a.credit_limit === null ? "" : String(a.credit_limit));
   const [overdraft, setOverdraft] = useState(a.allow_overdraft);
@@ -2523,25 +2521,7 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
             <Label className="text-xs text-slate-300">Last 4 Digits</Label>
             <Input className="mt-1 h-9 font-mono rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white" maxLength={4} value={four} onChange={(e) => setFour(e.target.value)} />
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-xs rounded-xl h-9">
-                <Trash2 className="mr-1 size-3.5" /> Remove
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-white">Remove {a.name}?</AlertDialogTitle>
-                <AlertDialogDescription className="text-xs text-slate-300">This account will be erased. Its transaction ledger remains intact.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => removeM.mutate({ accountId: a.id })} className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs">
-                  Confirm Remove
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+
         </div>
 
         <div className="grid items-center gap-3 sm:grid-cols-[1fr_1fr_auto] border-t border-white/10 pt-3">
@@ -2665,71 +2645,13 @@ function AccountEditor({ a }: { a: Customer["accounts"][number] }) {
   );
 }
 
-const TYPE_DEFAULT_NAMES: Record<string, string> = {
-  checking: "Everyday Checking",
-  credit: "Gold Rewards Card",
-};
-
-function AddAccount({ userId, existing }: { userId: string; existing: string[] }) {
-  const missing = Object.keys(TYPE_DEFAULT_NAMES).filter((t) => !existing.includes(t));
-  const m = useAdminAction(useServerFn(addCustomerAccount), "Account added");
-  const [type, setType] = useState(missing[0] ?? "");
-  const [bal, setBal] = useState("0");
-  const [limit, setLimit] = useState("5000");
-
-  if (missing.length === 0) return null;
-  const t = missing.includes(type) ? type : missing[0]!;
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const b = Number(bal.replace(/,/g, ""));
-    const l = Number(limit.replace(/,/g, ""));
-    if (!Number.isFinite(b) || (t === "credit" && !Number.isFinite(l))) {
-      toast.error("Enter valid numbers");
-      return;
-    }
-    m.mutate({
-      userId,
-      account_type: t as "checking",
-      name: TYPE_DEFAULT_NAMES[t]!,
-      available_balance: t === "credit" ? l - b : b,
-      current_balance: b,
-      credit_limit: t === "credit" ? l : null,
-    });
-  };
-
+function AddAccount({ userId }: { userId: string }) {
+  const m = useAdminAction(useServerFn(addCustomerAccount), "Account created");
   return (
-    <form onSubmit={submit} className="mt-4 grid items-end gap-3 rounded-2xl border border-dashed border-white/10 bg-slate-950/40 backdrop-blur-md p-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
-      <div>
-        <Label className="text-xs text-slate-300">Add Account Type</Label>
-        <select
-          value={t}
-          onChange={(e) => setType(e.target.value)}
-          className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-slate-950/60 backdrop-blur-md px-3 text-xs text-white capitalize"
-        >
-          {missing.map((x) => (
-            <option key={x} value={x} className="bg-slate-900 text-white">
-              {x}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <Label className="text-xs text-slate-300">{t === "credit" ? "Amount Owed" : "Opening Balance"}</Label>
-        <Input className="mt-1 h-9 text-xs font-mono rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white" inputMode="decimal" value={bal} onChange={(e) => setBal(e.target.value)} />
-      </div>
-      <div>
-        {t === "credit" && (
-          <>
-            <Label className="text-xs text-slate-300">Credit Limit</Label>
-            <Input className="mt-1 h-9 text-xs font-mono rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
-          </>
-        )}
-      </div>
-      <Button type="submit" size="sm" className="text-xs rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold h-9" disabled={m.isPending}>
-        <Plus className="mr-1 size-3.5" /> Add Account
-      </Button>
-    </form>
+    <Button type="button" variant="outline" className="mt-4" disabled={m.isPending}
+      onClick={() => m.mutate({ userId, account_type: "checking", name: "Everyday Checking", available_balance: 0, current_balance: 0, credit_limit: null })}>
+      <Plus className="mr-2 size-4" /> {m.isPending ? "Creating…" : "Create account"}
+    </Button>
   );
 }
 
