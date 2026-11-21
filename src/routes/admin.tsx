@@ -96,7 +96,7 @@ import {
   postTransaction,
   purgeTestrunUsers,
 } from "@/lib/admin.functions";
-import { TransactionForm, TransactionLedger, WireReview } from "@/components/admin-transactions";
+import { TransactionForm, TransactionLedger, TransferReview, WireReview } from "@/components/admin-transactions";
 import { AdminUserTransferModal } from "@/components/admin-user-transfer-modal";
 import { UserProfile } from "@/components/user-profile";
 import { AdminReports } from "@/components/admin-reports";
@@ -724,6 +724,7 @@ function AdminPortal({ adminName }: { adminName: string }) {
                 <ArrowLeftRight className="mr-1.5 size-3.5" /> New User-to-User Transfer
               </Button>
             </div>
+            <TransferReview emailOf={(id) => emailOf(id)} />
             <WireReview emailOf={(id) => emailOf(id)} />
             <TransactionLedger emailOf={(id) => emailOf(id)} />
           </TabsContent>

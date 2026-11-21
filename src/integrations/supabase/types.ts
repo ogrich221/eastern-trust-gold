@@ -170,6 +170,98 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_transfer_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          credit_txn_id: string | null
+          currency: string
+          from_account_id: string
+          id: string
+          memo: string | null
+          recipient_account_number: string | null
+          recipient_name: string
+          recipient_user_id: string | null
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sender_user_id: string
+          status: string
+          to_account_id: string | null
+          transfer_kind: string
+          txn_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          credit_txn_id?: string | null
+          currency: string
+          from_account_id: string
+          id?: string
+          memo?: string | null
+          recipient_account_number?: string | null
+          recipient_name: string
+          recipient_user_id?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender_user_id: string
+          status?: string
+          to_account_id?: string | null
+          transfer_kind: string
+          txn_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credit_txn_id?: string | null
+          currency?: string
+          from_account_id?: string
+          id?: string
+          memo?: string | null
+          recipient_account_number?: string | null
+          recipient_name?: string
+          recipient_user_id?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender_user_id?: string
+          status?: string
+          to_account_id?: string | null
+          transfer_kind?: string
+          txn_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_transfer_requests_credit_txn_id_fkey"
+            columns: ["credit_txn_id"]
+            isOneToOne: false
+            referencedRelation: "account_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_transfer_requests_from_account_id_fkey"
+            columns: ["from_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_transfer_requests_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_transfer_requests_txn_id_fkey"
+            columns: ["txn_id"]
+            isOneToOne: false
+            referencedRelation: "account_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       international_wires: {
         Row: {
           account_id: string
@@ -356,6 +448,16 @@ export type Database = {
         }
         Returns: string
       }
+      admin_review_customer_transfer: {
+        Args: {
+          _action: string
+          _admin: string
+          _idempotency_key: string
+          _reason: string
+          _request_id: string
+        }
+        Returns: string
+      }
       admin_user_transfer: {
         Args: {
           _admin: string
@@ -426,6 +528,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      post_pending_customer_debit: {
+        Args: {
+          _account_id: string
+          _actor: string
+          _amount: number
+          _currency: string
+          _description: string
+          _idempotency_key: string
+          _reference: string
+        }
+        Returns: string
       }
       set_transfer_pin: { Args: { _pin_hash: string }; Returns: undefined }
     }

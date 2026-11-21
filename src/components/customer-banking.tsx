@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatTransactionDate } from "@/lib/transaction-date";
 import { cleanAccountNumber, formatAccountNumber, isValidAccountNumber } from "@/lib/account-number";
@@ -258,11 +259,23 @@ export function CustomerBanking({
             return (
               <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
                 <div className="min-w-0">
-                  <p className="font-medium">{t.description}</p>
+                  <div className="font-medium flex flex-wrap items-center gap-2">
+                    <span>{t.description}</span>
+                    {t.status === "PENDING" && (
+                      <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-[11px]">
+                        Pending approval
+                      </Badge>
+                    )}
+                    {t.status === "REVERSED" && (
+                      <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive text-[11px]">
+                        Reversed
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {formatTransactionDate(t.transaction_date)}
                     {acctLabel ? ` · ${acctLabel}` : ""}
-                    {t.status === "REVERSED" ? " · Reversed" : ""}
+                    {t.status === "PENDING" ? " · Awaiting admin verification" : t.status === "COMPLETED" ? " · Completed" : ""}
                   </p>
                 </div>
                 <div className="text-right">
@@ -425,7 +438,7 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
       : await supabase.rpc("customer_payment", { _from: from, _payee: payee, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash });
     setBusy(false);
     if (error) { setErr(friendly(error.message)); if (error.message.includes("PIN_INVALID")) return; setStep("form"); return; }
-    toast.success(mode === "transfer" ? `Transfer of ${fmt(amt)} sent to ${cleanRecipient} (•••• ${cleanAcct.slice(-4)}).` : `Payment of ${fmt(amt)} sent to ${payee.trim()}.`);
+    toast.success(mode === "transfer" ? `Transfer of ${fmt(amt)} to ${cleanRecipient} (•••• ${cleanAcct.slice(-4)}) submitted — pending admin approval.` : `Payment of ${fmt(amt)} to ${payee.trim()} submitted — pending admin approval.`);
     onDone();
   };
   const destination = mode === "pay" ? payee : cleanRecipient;
@@ -435,7 +448,7 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{mode === "pay" ? "Pay a bill" : "Domestic transfer"}</DialogTitle>
-          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Send money to another Eastern Trust customer using their name, account number, and bank address."}</DialogDescription>
+          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account. Payments remain pending until verified by our team." : "Send money to another Eastern Trust customer using their name, account number, and bank address. Transfers remain pending until verified by our team."}</DialogDescription>
         </DialogHeader>
         {step === "form" ? (
           <div className="grid gap-4">
@@ -531,7 +544,7 @@ function WireDialog({ open, accounts, isSuspended = false, onClose, onDone }: { 
     });
     setBusy(false);
     if (error) { setErr(friendly(error.message)); if (error.message.includes("PIN_INVALID")) return; setStep("form"); return; }
-    toast.success(`Wire request for ${fmt(amt)} to ${recipient.trim()} submitted.`);
+    toast.success(`Wire request for ${fmt(amt)} to ${recipient.trim()} submitted — pending admin approval.`);
     onDone();
   };
 

@@ -11,8 +11,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { postTransaction, reverseTransaction, listTransactions, listWires, setWireStatus, updateTransactionDate } from "@/lib/admin.functions";
+import { postTransaction, reverseTransaction, listTransactions, listWires, setWireStatus, listTransferRequests, reviewTransferRequest, updateTransactionDate } from "@/lib/admin.functions";
 import { currentTransactionDate, formatTransactionDate, isValidTransactionDate } from "@/lib/transaction-date";
+import { formatAccountNumber } from "@/lib/account-number";
 
 const fmt = (n: number, c = "USD") => n.toLocaleString("en-US", { style: "currency", currency: c });
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
@@ -24,6 +25,8 @@ function useRefresh() {
     qc.invalidateQueries({ queryKey: ["admin-customers"] });
     qc.invalidateQueries({ queryKey: ["admin-audit"] });
     qc.invalidateQueries({ queryKey: ["admin-txns"] });
+    qc.invalidateQueries({ queryKey: ["admin-transfer-requests"] });
+    qc.invalidateQueries({ queryKey: ["admin-wires"] });
   };
 }
 
@@ -284,7 +287,7 @@ export function TransactionLedger({ userId, emailOf }: { userId?: string; emailO
                 </td>
                 <td className="p-3 text-xs text-slate-400">{t.admin_name}</td>
                 <td className="p-3">
-                  <Badge variant="outline" className={`text-xs ${t.status === "REVERSED" || t.status === "FAILED" ? "border-rose-500/40 bg-rose-500/10 text-rose-300" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"}`}>
+                  <Badge variant="outline" className={`text-xs ${t.status === "PENDING" ? "border-amber-500/40 bg-amber-500/10 text-amber-300" : t.status === "REVERSED" || t.status === "FAILED" ? "border-rose-500/40 bg-rose-500/10 text-rose-300" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"}`}>
                     {t.status}
                   </Badge>
                 </td>
@@ -415,6 +418,128 @@ type Wire = {
   recipient_bank: string; swift_bic: string; account_number: string; country: string;
   currency: string; amount: number; memo: string | null; status: string; created_at: string;
 };
+
+type TransferRequest = {
+  id: string; txn_id: string; transfer_kind: string; sender_user_id: string;
+  recipient_user_id: string | null; recipient_name: string; recipient_account_number: string | null;
+  amount: number; currency: string; memo: string | null; status: string;
+  reviewed_by: string | null; review_reason: string | null; created_at: string;
+};
+
+export function TransferReview({ emailOf }: { emailOf: (id: string) => string }) {
+  const list = useServerFn(listTransferRequests);
+  const review = useServerFn(reviewTransferRequest);
+  const refresh = useRefresh();
+  const requests = useQuery({ queryKey: ["admin-transfer-requests"], queryFn: () => list() });
+  const [target, setTarget] = useState<{ req: TransferRequest; action: "approve" | "cancel"; reason: string } | null>(null);
+
+  const m = useMutation({
+    mutationFn: async (t: { req: TransferRequest; action: "approve" | "cancel"; reason: string }) => {
+      await review({ data: { requestId: t.req.id, action: t.action, reason: t.reason, idempotencyKey: newKey() } });
+    },
+    onSuccess: (_, vars) => {
+      toast.success(vars.action === "approve" ? "Transfer approved and released." : "Transfer declined and refunded.");
+      setTarget(null);
+      refresh();
+    },
+    onError: (e) => toast.error(errMsg(e)),
+  });
+
+  const pendingCount = (requests.data ?? []).filter((r) => r.status === "PENDING").length;
+  const badge = (s: string) =>
+    s === "PENDING" ? <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300">Pending</Badge>
+    : s === "COMPLETED" ? <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300">Approved</Badge>
+    : <Badge variant="outline" className="border-rose-500/40 bg-rose-500/10 text-rose-300">Declined</Badge>;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-xl overflow-hidden">
+      <div className="border-b border-white/10 p-5 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-base font-semibold text-white font-display flex items-center gap-2">
+            Pending Customer Transfers &amp; Payments
+            {pendingCount > 0 && (
+              <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs">
+                {pendingCount} pending
+              </Badge>
+            )}
+          </h3>
+          <p className="text-xs text-slate-400">All customer domestic transfers and bill payments arrive pending. Approving releases funds to the recipient; declining refunds the sender in full.</p>
+        </div>
+      </div>
+      {requests.isLoading && <p className="p-5 text-xs text-slate-400">Loading customer transfer requests…</p>}
+      {requests.data?.length === 0 && <p className="p-5 text-xs text-slate-400">No customer transfer requests yet.</p>}
+      <ul className="divide-y divide-white/5">
+        {requests.data?.map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 p-5 hover:bg-white/5 transition-colors">
+            <div className="min-w-0">
+              <div className="font-semibold text-white flex flex-wrap items-center gap-2">
+                <span>{fmt(Number(r.amount), r.currency)} → {r.recipient_name}</span>
+                <Badge variant="outline" className="border-white/15 bg-white/5 text-slate-300 text-[10px]">
+                  {r.transfer_kind === "DOMESTIC" ? "Domestic Transfer" : "Bill Payment"}
+                </Badge>
+                {badge(r.status)}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                From {emailOf(r.sender_user_id)}
+                {r.recipient_account_number ? ` · To Acct ${formatAccountNumber(r.recipient_account_number)}` : ""}
+                {r.recipient_user_id ? ` (${emailOf(r.recipient_user_id)})` : ""}
+                {" · "}{new Date(r.created_at).toLocaleString()}
+                {r.memo ? ` · Note: ${r.memo}` : ""}
+                {r.review_reason ? ` · Review: ${r.review_reason}` : ""}
+              </p>
+            </div>
+            {r.status === "PENDING" && (
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => setTarget({ req: r, action: "approve", reason: "" })} className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">
+                  Approve Transfer
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setTarget({ req: r, action: "cancel", reason: "" })} className="rounded-xl border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-semibold">
+                  Decline &amp; Refund
+                </Button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <AlertDialog open={target !== null} onOpenChange={(o) => { if (!o && !m.isPending) setTarget(null); }}>
+        <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">
+              {target?.action === "approve" ? "Approve and release this transfer?" : "Decline and refund this transfer?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-slate-300">
+              {target?.action === "approve"
+                ? target.req.transfer_kind === "DOMESTIC"
+                  ? "This will mark the sender's debit as completed and credit the recipient's checking account immediately."
+                  : "This will mark the bill payment as completed."
+                : "This will decline the request and immediately refund the full amount back to the sender's account."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div>
+            <Label className="text-xs text-slate-300">Audit reason (required)</Label>
+            <Input
+              className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 backdrop-blur-md text-white text-xs placeholder:text-slate-500"
+              maxLength={200}
+              value={target?.reason ?? ""}
+              onChange={(e) => target && setTarget({ ...target, reason: e.target.value })}
+              placeholder="e.g. Verified sender and recipient details"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={m.isPending} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={m.isPending || (target?.reason.trim().length ?? 0) < 3}
+              onClick={(e) => { e.preventDefault(); if (target) m.mutate(target); }}
+              className={`rounded-xl text-xs font-semibold ${target?.action === "approve" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-rose-600 hover:bg-rose-500 text-white"}`}
+            >
+              {m.isPending ? "Processing…" : target?.action === "approve" ? "Confirm Approval" : "Confirm Decline & Refund"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
 
 export function WireReview({ emailOf }: { emailOf: (id: string) => string }) {
   const list = useServerFn(listWires);

@@ -585,6 +585,7 @@ const TXN_ERRORS: Record<string, string> = {
   ACCOUNT_NOT_FOUND: "Account not found.",
   NOT_FOUND: "Transaction not found.",
   NOT_REVERSIBLE: "Only completed, not-yet-reversed transactions can be reversed.",
+  ALREADY_PROCESSED: "This transfer request has already been processed.",
 };
 const txnError = (msg: string) => {
   const key = Object.keys(TXN_ERRORS).find((k) => msg.includes(k));
@@ -928,6 +929,9 @@ export const deleteCustomer = createServerFn({ method: "POST" })
       await admin.from("international_wires").delete().eq("user_id", data.userId);
     } catch {}
     try {
+      await admin.from("customer_transfer_requests").delete().or(`sender_user_id.eq.${data.userId},recipient_user_id.eq.${data.userId}`);
+    } catch {}
+    try {
       await admin.from("bank_accounts").delete().eq("user_id", data.userId);
     } catch {}
     try {
@@ -1035,6 +1039,9 @@ export const purgeTestrunUsers = createServerFn({ method: "POST" })
       } catch {}
       try {
         await admin.from("international_wires").delete().eq("user_id", uid);
+      } catch {}
+      try {
+        await admin.from("customer_transfer_requests").delete().or(`sender_user_id.eq.${uid},recipient_user_id.eq.${uid}`);
       } catch {}
       try {
         await admin.from("bank_accounts").delete().eq("user_id", uid);
@@ -1599,6 +1606,13 @@ export const setWireStatus = createServerFn({ method: "POST" })
         const knownKey = Object.keys(TXN_ERRORS).find((k) => error.message.includes(k));
         throw new Error(knownKey ? TXN_ERRORS[knownKey] : error.message);
       }
+    } else {
+      const { error: txnErr } = await admin
+        .from("account_transactions")
+        .update({ status: "COMPLETED" })
+        .eq("id", wire.txn_id)
+        .eq("status", "PENDING");
+      if (txnErr) throw new Error(txnErr.message);
     }
 
     const { error: e2 } = await admin
@@ -1617,6 +1631,40 @@ export const setWireStatus = createServerFn({ method: "POST" })
       reason: data.reason,
     });
     return { ok: true };
+  });
+
+export const listTransferRequests = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async ({ context }) => {
+    const { admin } = await assertAdmin(context);
+    const { data, error } = await admin
+      .from("customer_transfer_requests")
+      .select("id,txn_id,credit_txn_id,transfer_kind,sender_user_id,from_account_id,to_account_id,recipient_user_id,recipient_name,recipient_account_number,amount,currency,memo,status,reviewed_by,review_reason,reviewed_at,created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const reviewTransferRequest = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({
+    requestId: z.string().uuid(),
+    action: z.enum(["approve", "cancel"]),
+    reason: z.string().trim().min(3).max(300),
+    idempotencyKey: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { admin } = await assertAdmin(context);
+    const { data: reqId, error } = await admin.rpc("admin_review_customer_transfer", {
+      _request_id: data.requestId,
+      _action: data.action,
+      _admin: context.adminName,
+      _reason: data.reason,
+      _idempotency_key: data.idempotencyKey,
+    });
+    if (error) throw txnError(error.message);
+    return { ok: true, id: reqId };
   });
 
 

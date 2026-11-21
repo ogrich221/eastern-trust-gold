@@ -134,6 +134,13 @@
       "when": 1795287267263,
       "tag": "0018_account_numbers_and_user_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795290489613,
+      "tag": "0019_pending_customer_transfers_verification",
+      "breakpoints": true
     }
   ]
 }
