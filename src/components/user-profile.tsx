@@ -137,7 +137,7 @@ export function UserProfile({
     if ((user as any)?.banned) return true;
     const bu = (user as any)?.banned_until;
     if (bu && new Date(bu) > new Date()) return true;
-    if (user.user_metadata?.suspended || user.user_metadata?.status === "suspended") return true;
+    if (user.user_metadata?.["suspended"] || user.user_metadata?.["status"] === "suspended") return true;
     if ((user as any)?.app_metadata?.suspended || (user as any)?.app_metadata?.status === "suspended") return true;
     if ((profile as any)?.status === "suspended" || (profile as any)?.is_suspended) return true;
     return false;

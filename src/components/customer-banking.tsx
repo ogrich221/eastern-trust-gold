@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatTransactionDate } from "@/lib/transaction-date";
 
 export type BankAccount = { id: string; account_type: string; name: string; last_four: string; available_balance: number };
-type Txn = { id: string; account_id: string; txn_type: string; amount: number; currency: string; description: string; status: string; created_at: string; balance_after: number };
+type Txn = { id: string; account_id: string; txn_type: string; amount: number; currency: string; description: string; status: string; created_at: string; transaction_date: string; balance_after: number };
 
 const errors: Record<string, string> = {
   INSUFFICIENT_FUNDS: "There isn't enough money in that account.",
@@ -77,7 +78,7 @@ export function CustomerBanking({
   }, [isSuspended]);
 
   const loadTxns = useCallback(async () => {
-    let q = supabase.from("account_transactions").select("id,account_id,txn_type,amount,currency,description,status,created_at,balance_after").order("created_at", { ascending: false }).limit(100);
+    let q = supabase.from("account_transactions").select("id,account_id,txn_type,amount,currency,description,status,created_at,transaction_date,balance_after").order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).limit(100);
     if (filter !== "all") q = q.eq("account_id", filter);
     const { data } = await q;
     setTxns((data ?? []).map((t) => ({ ...t, amount: Number(t.amount), balance_after: Number(t.balance_after) })));
@@ -91,7 +92,7 @@ export function CustomerBanking({
       const suspended = Boolean(
         isSuspended ||
         (u.user as any)?.banned ||
-        u.user.user_metadata?.suspended ||
+        u.user.user_metadata?.["suspended"] ||
         (u.user as any)?.app_metadata?.suspended ||
         ((u.user as any)?.banned_until && new Date((u.user as any).banned_until) > new Date())
       );
@@ -167,7 +168,7 @@ export function CustomerBanking({
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
               <div className="min-w-0">
                 <p className="font-medium">{t.description}</p>
-                <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString()} · {name(t.account_id)}{t.status === "REVERSED" ? " · Reversed" : ""}</p>
+                <p className="text-xs text-muted-foreground">{formatTransactionDate(t.transaction_date)} · {name(t.account_id)}{t.status === "REVERSED" ? " · Reversed" : ""}</p>
               </div>
               <div className="text-right">
                 <p className={t.txn_type === "CREDIT" ? "font-semibold text-primary" : "font-semibold"}>{hidden ? "••••" : `${t.txn_type === "CREDIT" ? "+" : "−"}${fmt(t.amount, t.currency)}`}</p>

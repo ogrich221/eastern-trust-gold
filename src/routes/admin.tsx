@@ -99,6 +99,7 @@ import { UserProfile } from "@/components/user-profile";
 import { AdminReports } from "@/components/admin-reports";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarModal } from "@/components/avatar-modal";
+import { currentTransactionDate, formatTransactionDate, isValidTransactionDate } from "@/lib/transaction-date";
 
 export const Route = createFileRoute("/admin")({
   staticData: { sitemap: false },
@@ -1884,6 +1885,7 @@ function QuickCreditDebitModal({
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("Administrative deposit");
   const [reference, setReference] = useState("");
+  const [transactionDate, setTransactionDate] = useState(currentTransactionDate);
   const [busy, setBusy] = useState(false);
   const [creatingAcct, setCreatingAcct] = useState(false);
 
@@ -1893,6 +1895,7 @@ function QuickCreditDebitModal({
       setAmount("");
       setDescription(type === "CREDIT" ? "Administrative credit / deposit" : "Administrative debit / fee");
       setReference("");
+      setTransactionDate(currentTransactionDate());
     } else {
       setSelectedAccountId("");
     }
@@ -1944,6 +1947,10 @@ function QuickCreditDebitModal({
       toast.error("A description / reason of at least 3 characters is required");
       return;
     }
+    if (!isValidTransactionDate(transactionDate)) {
+      toast.error("Please choose a valid transaction date");
+      return;
+    }
 
     setBusy(true);
     try {
@@ -1957,9 +1964,10 @@ function QuickCreditDebitModal({
           reference: reference.trim() || undefined,
           idempotencyKey: crypto.randomUUID(),
           allowOverdraft: true,
+          transactionDate,
         },
       });
-      toast.success(`${type === "CREDIT" ? "Credited" : "Debited"} ${money(numAmount)} on ${currentAccount.name}`);
+      toast.success(`${type === "CREDIT" ? "Credited" : "Debited"} ${money(numAmount)} on ${currentAccount.name}, dated ${formatTransactionDate(transactionDate)}`);
       await qc.invalidateQueries({ queryKey: ["admin-customers"] });
       await qc.invalidateQueries({ queryKey: ["admin-audit"] });
       await qc.invalidateQueries({ queryKey: ["admin-txns"] });
@@ -2053,6 +2061,21 @@ function QuickCreditDebitModal({
                   <ArrowDownRight className="size-4" /> Debit (−) [Deduct Funds]
                 </button>
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="quick-transaction-date" className="text-xs font-semibold">
+                Transaction Date <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="quick-transaction-date"
+                className="mt-1 text-xs"
+                type="date"
+                value={transactionDate}
+                onChange={(e) => setTransactionDate(e.target.value)}
+                required
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">This date appears in transaction history; the actual entry time is retained for auditing.</p>
             </div>
 
             {/* Amount input & Quick buttons */}

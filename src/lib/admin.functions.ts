@@ -1,6 +1,7 @@
 import { createServerFn, createMiddleware } from "@tanstack/react-start";
 import { getRequestHeader, setResponseHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
+import { isValidTransactionDate } from "./transaction-date";
 
 const NIL = "00000000-0000-0000-0000-000000000000";
 
@@ -462,6 +463,7 @@ export const postTransaction = createServerFn({ method: "POST" })
     reference: z.string().trim().max(100).optional().default(""),
     idempotencyKey: z.string().uuid(),
     allowOverdraft: z.boolean().default(true).optional(),
+    transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid transaction date").refine(isValidTransactionDate, "Choose a valid transaction date").optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { admin } = await assertAdmin(context);
@@ -484,6 +486,7 @@ export const postTransaction = createServerFn({ method: "POST" })
       _reference: data.reference || "",
       _admin: context.adminName,
       _idempotency_key: data.idempotencyKey,
+      _transaction_date: data.transactionDate ?? new Date().toISOString().slice(0, 10),
     });
 
     if (!error && id) {
@@ -546,6 +549,7 @@ export const postTransaction = createServerFn({ method: "POST" })
         admin_name: context.adminName,
         reference: data.reference || null,
         idempotency_key: data.idempotencyKey,
+        transaction_date: data.transactionDate ?? new Date().toISOString().slice(0, 10),
       })
       .select("id")
       .single();
@@ -584,6 +588,8 @@ export const postTransaction = createServerFn({ method: "POST" })
           balance_after: after,
           reason: data.description,
           reference: data.reference,
+          transaction_date: data.transactionDate ?? new Date().toISOString().slice(0, 10),
+          entered_at: new Date().toISOString(),
         } as never,
       });
     } catch {}
@@ -701,13 +707,13 @@ export const listTransactions = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { admin } = await assertAdmin(context);
     const size = 25;
-    let q = admin.from("account_transactions").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(data.page * size, data.page * size + size - 1);
+    let q = admin.from("account_transactions").select("*", { count: "exact" }).order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).range(data.page * size, data.page * size + size - 1);
     if (data.userId) q = q.eq("user_id", data.userId);
     if (data.type !== "ALL") q = q.eq("txn_type", data.type);
     if (data.status !== "ALL") q = q.eq("status", data.status);
     if (data.adminName) q = q.ilike("admin_name", `%${data.adminName.replace(/[%_]/g, "")}%`);
-    if (data.from) q = q.gte("created_at", new Date(data.from).toISOString());
-    if (data.to) q = q.lte("created_at", new Date(new Date(data.to).getTime() + 86400000).toISOString());
+    if (data.from) q = q.gte("transaction_date", data.from);
+    if (data.to) q = q.lte("transaction_date", data.to);
     const { data: rows, error, count } = await q;
     if (error) throw new Error("Could not load transactions");
     return { rows: (rows ?? []).map((r) => ({ ...r, amount: Number(r.amount), balance_before: Number(r.balance_before), balance_after: Number(r.balance_after) })), total: count ?? 0, pageSize: size };

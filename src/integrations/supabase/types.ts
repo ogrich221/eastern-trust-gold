@@ -32,6 +32,7 @@ export type Database = {
           reversed_by_id: string | null
           reverses_id: string | null
           status: string
+          transaction_date: string
           txn_type: string
           user_id: string
         }
@@ -52,6 +53,7 @@ export type Database = {
           reversed_by_id?: string | null
           reverses_id?: string | null
           status?: string
+          transaction_date?: string
           txn_type: string
           user_id: string
         }
@@ -72,6 +74,7 @@ export type Database = {
           reversed_by_id?: string | null
           reverses_id?: string | null
           status?: string
+          transaction_date?: string
           txn_type?: string
           user_id?: string
         }
@@ -318,6 +321,22 @@ export type Database = {
           _reference: string
           _reversal_reason?: string
           _reverses?: string
+          _type: string
+        }
+        Returns: string
+      }
+      admin_post_transaction_with_date: {
+        Args: {
+          _account_id: string
+          _admin: string
+          _amount: number
+          _currency: string
+          _description: string
+          _idempotency_key: string
+          _reference: string
+          _reversal_reason?: string
+          _reverses?: string
+          _transaction_date?: string
           _type: string
         }
         Returns: string

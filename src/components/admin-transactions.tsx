@@ -12,6 +12,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { postTransaction, reverseTransaction, listTransactions, listWires, setWireStatus } from "@/lib/admin.functions";
+import { currentTransactionDate, formatTransactionDate, isValidTransactionDate } from "@/lib/transaction-date";
 
 const fmt = (n: number, c = "USD") => n.toLocaleString("en-US", { style: "currency", currency: c });
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
@@ -36,19 +37,21 @@ export function TransactionForm({ a }: { a: Acct }) {
   const [currency, setCurrency] = useState(a.currency);
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
+  const [transactionDate, setTransactionDate] = useState(currentTransactionDate);
   // One key per confirmation; repeated clicks reuse it so the server records the transaction once.
   const [key, setKey] = useState(newKey);
   const cleanAmount = amount.replace(/,/g, "").trim();
   const n = Number(cleanAmount);
   const valid = /^\d{1,10}(\.\d{1,2})?$/.test(cleanAmount) && n > 0;
   const m = useMutation({
-    mutationFn: (t: "CREDIT" | "DEBIT") => post({ data: { accountId: a.id, type: t, amount: cleanAmount, currency, description, reference, idempotencyKey: key, allowOverdraft: true } }),
-    onSuccess: (r) => { toast.success(`Transaction ${r.id.slice(0, 8)} completed`); setType(null); setAmount(""); setDescription(""); setReference(""); setKey(newKey()); refresh(); },
+    mutationFn: (t: "CREDIT" | "DEBIT") => post({ data: { accountId: a.id, type: t, amount: cleanAmount, currency, description, reference, idempotencyKey: key, allowOverdraft: true, transactionDate } }),
+    onSuccess: (r) => { toast.success(`Transaction ${r.id.slice(0, 8)} completed`); setType(null); setAmount(""); setDescription(""); setReference(""); setTransactionDate(currentTransactionDate()); setKey(newKey()); refresh(); },
     onError: (e) => { toast.error(errMsg(e)); setKey(newKey()); },
   });
   const open = (t: "CREDIT" | "DEBIT") => {
     if (!valid) { toast.error("Enter a positive amount with at most 2 decimals"); return; }
     if (description.trim().length < 3) { toast.error("A description / reason is required"); return; }
+    if (!isValidTransactionDate(transactionDate)) { toast.error("Choose a valid transaction date"); return; }
     setType(t);
   };
   const after = type ? a.available_balance + (type === "CREDIT" ? n : -n) : 0;
@@ -57,13 +60,14 @@ export function TransactionForm({ a }: { a: Acct }) {
   return (
     <div className="space-y-3 border-t border-border pt-3">
       <p className="text-xs font-semibold uppercase tracking-widest text-primary">New transaction</p>
-      <div className="grid gap-3 sm:grid-cols-[140px_90px_1fr_160px]">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[140px_90px_160px_1fr_160px]">
         <div><Label className="text-xs">Amount</Label><Input className="mt-1" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></div>
         <div><Label className="text-xs">Currency</Label>
           <select className="mt-1 h-9 w-full border border-input bg-background px-2 text-sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             <option value={a.currency}>{a.currency}</option>
           </select>
         </div>
+        <div><Label htmlFor={`transaction-date-${a.id}`} className="text-xs">Transaction date</Label><Input id={`transaction-date-${a.id}`} className="mt-1" type="date" required value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} /></div>
         <div><Label className="text-xs">Description / reason (required)</Label><Input className="mt-1" maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Wire transfer, payroll, adjustment" /></div>
         <div><Label className="text-xs">Internal reference (optional)</Label><Input className="mt-1" maxLength={100} value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. TXN-10492" /></div>
       </div>
@@ -85,6 +89,7 @@ export function TransactionForm({ a }: { a: Acct }) {
                 <p>Transaction Amount: <strong className={type === "CREDIT" ? "text-emerald-400" : "text-rose-400"}>{type === "CREDIT" ? "+" : "−"}{fmt(n || 0, currency)}</strong></p>
                 <p>Current Balance: <strong>{fmt(a.available_balance, a.currency)}</strong></p>
                 <p>Resulting Balance: <strong className={after < 0 ? "text-rose-400" : "text-emerald-400"}>{fmt(after, a.currency)}</strong></p>
+                <p>Transaction date: <strong>{formatTransactionDate(transactionDate)}</strong></p>
                 <p>Reason / Description: <em>{description}</em></p>
                 {reference && <p>Reference: {reference}</p>}
                 {isOverdraft && (
@@ -136,14 +141,17 @@ export function TransactionLedger({ userId, emailOf }: { userId?: string; emailO
       <div className="overflow-x-auto border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="border-b border-border text-left text-muted-foreground">
-            <tr><th className="p-2">When</th><th className="p-2">ID</th>{!userId && <th className="p-2">Customer</th>}<th className="p-2">Type</th><th className="p-2 text-right">Amount</th><th className="p-2 text-right">Before → After</th><th className="p-2">Reason</th><th className="p-2">Admin</th><th className="p-2">Status</th><th className="p-2" /></tr>
+            <tr><th className="p-2">Transaction date</th><th className="p-2">ID</th>{!userId && <th className="p-2">Customer</th>}<th className="p-2">Type</th><th className="p-2 text-right">Amount</th><th className="p-2 text-right">Before → After</th><th className="p-2">Reason</th><th className="p-2">Admin</th><th className="p-2">Status</th><th className="p-2" /></tr>
           </thead>
           <tbody>
             {q.isLoading && <tr><td colSpan={10} className="p-3 text-muted-foreground">Loading…</td></tr>}
             {q.error && <tr><td colSpan={10} className="p-3 text-destructive">{errMsg(q.error)}</td></tr>}
             {q.data?.rows.map((t) => (
               <tr key={t.id} className="border-b border-border align-top">
-                <td className="p-2 whitespace-nowrap">{new Date(t.created_at).toLocaleString()}</td>
+                <td className="p-2 whitespace-nowrap">
+                  {formatTransactionDate(t.transaction_date)}
+                  <div className="text-xs text-muted-foreground">Entered {new Date(t.created_at).toLocaleString()}</div>
+                </td>
                 <td className="p-2 font-mono text-xs" title={t.id}>{t.id.slice(0, 8)}{t.reference && <div className="text-muted-foreground">ref {t.reference.slice(0, 12)}</div>}</td>
                 {!userId && <td className="p-2 text-xs">{emailOf?.(t.user_id) ?? t.user_id.slice(0, 8)}</td>}
                 <td className="p-2"><Badge variant={t.txn_type === "CREDIT" ? "default" : "outline"}>{t.txn_type}</Badge></td>
