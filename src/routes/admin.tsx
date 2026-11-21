@@ -39,6 +39,7 @@ import {
   Shield,
   ArrowDownRight,
   ArrowUpRight,
+  ArrowLeftRight,
   Camera,
   Edit3,
   Sparkles,
@@ -96,11 +97,13 @@ import {
   purgeTestrunUsers,
 } from "@/lib/admin.functions";
 import { TransactionForm, TransactionLedger, WireReview } from "@/components/admin-transactions";
+import { AdminUserTransferModal } from "@/components/admin-user-transfer-modal";
 import { UserProfile } from "@/components/user-profile";
 import { AdminReports } from "@/components/admin-reports";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarModal } from "@/components/avatar-modal";
 import { currentTransactionDate, formatTransactionDate, isValidTransactionDate } from "@/lib/transaction-date";
+import { formatAccountNumber } from "@/lib/account-number";
 import { BankLoadingScreen, HistoryNavigation } from "@/components/bank-chrome";
 
 export const Route = createFileRoute("/admin")({
@@ -288,6 +291,8 @@ function AdminPortal({ adminName }: { adminName: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [quickModalCustomer, setQuickModalCustomer] = useState<Customer | null>(null);
   const [quickModalOpen, setQuickModalOpen] = useState(false);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferSenderId, setTransferSenderId] = useState<string | null>(null);
 
   // Filter out any public homepage contact inquiries so the executive portal shows pure banking records
   const staffAuditLogs = useMemo(() => {
@@ -690,7 +695,7 @@ function AdminPortal({ adminName }: { adminName: string }) {
               {/* Customer Detail View */}
               <div className="h-[750px] overflow-y-auto">
                 {selected ? (
-                  <CustomerDetail key={selected.id} c={selected} onDeleted={() => setSelectedId(null)} />
+                  <CustomerDetail key={selected.id} c={selected} allCustomers={customers.data ?? []} onDeleted={() => setSelectedId(null)} />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-slate-900/20 backdrop-blur-md p-12 text-center text-slate-400">
                     <Users className="size-12 stroke-[1.5] text-slate-600" />
@@ -706,6 +711,19 @@ function AdminPortal({ adminName }: { adminName: string }) {
 
           {/* TAB 2: TRANSACTION MONITORING */}
           <TabsContent value="transactions" className="mt-6 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl px-5 py-4">
+              <div>
+                <h2 className="text-base font-bold text-white font-display">User-to-User Transfers</h2>
+                <p className="text-xs text-slate-400">Move funds directly between any two customers&apos; active checking accounts.</p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => { setTransferSenderId(selectedId); setTransferModalOpen(true); }}
+                className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold"
+              >
+                <ArrowLeftRight className="mr-1.5 size-3.5" /> New User-to-User Transfer
+              </Button>
+            </div>
             <WireReview emailOf={(id) => emailOf(id)} />
             <TransactionLedger emailOf={(id) => emailOf(id)} />
           </TabsContent>
@@ -910,6 +928,13 @@ function AdminPortal({ adminName }: { adminName: string }) {
         onOpenChange={setQuickModalOpen}
         customer={quickModalCustomer}
       />
+
+      <AdminUserTransferModal
+        open={transferModalOpen}
+        onOpenChange={setTransferModalOpen}
+        customers={customers.data ?? []}
+        initialSenderId={transferSenderId}
+      />
     </main>
   );
 }
@@ -929,7 +954,7 @@ function useAdminAction<T>(fn: (args: { data: T }) => Promise<unknown>, success:
   });
 }
 
-function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }) {
+function CustomerDetail({ c, allCustomers, onDeleted }: { c: Customer; allCustomers: Customer[]; onDeleted: () => void }) {
   const profileM = useAdminAction(useServerFn(updateCustomerProfile), "Profile saved");
   const emailM = useAdminAction(useServerFn(updateCustomerEmail), "Email updated");
   const passM = useAdminAction(useServerFn(setCustomerPassword), "Password set");
@@ -971,6 +996,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [quickCreditDebitOpen, setQuickCreditDebitOpen] = useState(false);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
 
   const fullName = c.profile ? `${c.profile.first_name} ${c.profile.last_name}`.trim() : "";
   const initials = (fullName ? fullName.slice(0, 2) : c.email.slice(0, 2)).toUpperCase();
@@ -1029,6 +1055,13 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-sm"
             >
               <TrendingUp className="mr-1.5 size-3.5" /> Credit / Debit
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setTransferModalOpen(true)}
+              className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold shadow-sm"
+            >
+              <ArrowLeftRight className="mr-1.5 size-3.5" /> Transfer to User
             </Button>
             <Button variant="outline" size="sm" onClick={() => setContactModalOpen(true)} className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200">
               <FileText className="mr-1.5 size-3.5" /> Edit Customer Details
@@ -1299,7 +1332,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                       <h4 className="font-semibold text-sm text-white">{a.name}</h4>
                     </div>
                     <Badge variant="outline" className="font-mono text-xs border-white/10 text-slate-300">
-                      •••• {a.last_four}
+                      {formatAccountNumber(a.account_number, a.last_four)}
                     </Badge>
                   </div>
 
@@ -1730,6 +1763,13 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
         open={quickCreditDebitOpen}
         onOpenChange={setQuickCreditDebitOpen}
         customer={c}
+      />
+
+      <AdminUserTransferModal
+        open={transferModalOpen}
+        onOpenChange={setTransferModalOpen}
+        customers={allCustomers}
+        initialSenderId={c.id}
       />
     </div>
   );

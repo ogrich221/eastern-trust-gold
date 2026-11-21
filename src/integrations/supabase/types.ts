@@ -124,6 +124,7 @@ export type Database = {
       }
       bank_accounts: {
         Row: {
+          account_number: string | null
           account_type: string
           allow_overdraft: boolean
           available_balance: number
@@ -138,6 +139,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_number?: string | null
           account_type: string
           allow_overdraft?: boolean
           available_balance?: number
@@ -152,6 +154,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_number?: string | null
           account_type?: string
           allow_overdraft?: boolean
           available_balance?: number
@@ -353,6 +356,19 @@ export type Database = {
         }
         Returns: string
       }
+      admin_user_transfer: {
+        Args: {
+          _admin: string
+          _amount: number
+          _from_account_id: string
+          _idempotency_key: string
+          _memo: string
+          _recipient_name: string
+          _to_account_number: string
+          _transaction_date?: string
+        }
+        Returns: string
+      }
       customer_payment: {
         Args: {
           _amount: number
@@ -373,6 +389,18 @@ export type Database = {
           _pin_hash?: string
           _to_account: string
           _to_email: string
+        }
+        Returns: string
+      }
+      customer_user_transfer: {
+        Args: {
+          _amount: number
+          _from: string
+          _key: string
+          _memo: string
+          _pin_hash?: string
+          _recipient_name: string
+          _to_account_number: string
         }
         Returns: string
       }

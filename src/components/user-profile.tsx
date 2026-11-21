@@ -56,12 +56,14 @@ import { toast } from "sonner";
 import { CustomerBanking } from "./customer-banking";
 import { AvatarModal } from "./avatar-modal";
 import { usableCustomerAccounts } from "@/lib/customer-account";
+import { formatAccountNumber } from "@/lib/account-number";
 
 export type ProfileAccount = {
   id: string;
   account_type: string;
   name: string;
   last_four: string;
+  account_number?: string | null;
   available_balance: number;
   current_balance: number;
   credit_limit: number | null;
@@ -741,7 +743,8 @@ export function UserProfile({
                 };
                 const Icon = config.icon;
                 const isRevealed = Boolean(revealedAccounts[a.id]);
-                const fullAccountNumber = `${config.fullPrefix}${a.last_four}`;
+                const fullAccountNumber = formatAccountNumber(a.account_number, a.last_four);
+                const rawAccountNumber = (a.account_number || `${config.fullPrefix}${a.last_four}`).replace(/\s/g, "");
 
                 return (
                   <article
@@ -783,7 +786,7 @@ export function UserProfile({
                           </button>
                           <button
                             type="button"
-                            onClick={() => copyToClipboard(fullAccountNumber.replace(/\s/g, ""), `acct-${a.id}`)}
+                            onClick={() => copyToClipboard(rawAccountNumber, `acct-${a.id}`)}
                             className="p-1 text-muted-foreground hover:text-foreground"
                             title="Copy account number"
                           >
@@ -892,6 +895,7 @@ export function UserProfile({
               isSuspended={isSuspended}
               customerId={user.id}
               isAdminView={isAdminView}
+              accountHolderName={fullName || user.email || "Eastern Trust Client"}
               onChange={() => onRefresh?.()}
             />
           </div>
@@ -1261,6 +1265,7 @@ export function UserProfile({
             isSuspended={isSuspended}
             customerId={user.id}
             isAdminView={isAdminView}
+            accountHolderName={fullName || user.email || "Eastern Trust Client"}
             onChange={() => onRefresh?.()}
           />
         </TabsContent>
@@ -1620,11 +1625,11 @@ export function UserProfile({
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Account Number:</span>
                     <div className="flex items-center gap-1 font-mono font-bold text-foreground">
-                      <span>82049182{primaryChecking?.last_four || "1024"}</span>
+                      <span>{primaryChecking?.account_number || `82049182${primaryChecking?.last_four || "1024"}`}</span>
                       <button
                         type="button"
                         onClick={() =>
-                          copyToClipboard(`82049182${primaryChecking?.last_four || "1024"}`, "irs-acct")
+                          copyToClipboard(primaryChecking?.account_number || `82049182${primaryChecking?.last_four || "1024"}`, "irs-acct")
                         }
                         className="text-primary hover:text-primary/80"
                       >

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeftRight, Globe, KeyRound, Receipt, AlertTriangle, RefreshCw } from "lucide-react";
+import { ArrowLeftRight, Check, Copy, Globe, KeyRound, Receipt, AlertTriangle, RefreshCw, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { listTransactions } from "@/lib/admin.functions";
 import { toast } from "sonner";
@@ -10,14 +10,17 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatTransactionDate } from "@/lib/transaction-date";
+import { cleanAccountNumber, formatAccountNumber, isValidAccountNumber } from "@/lib/account-number";
 
-export type BankAccount = { id: string; account_type: string; name: string; last_four: string; available_balance: number };
+export type BankAccount = { id: string; account_type: string; name: string; last_four: string; account_number?: string | null; available_balance: number };
 type Txn = { id: string; account_id: string; txn_type: string; amount: number; currency: string; description: string; status: string; created_at: string; transaction_date: string; balance_after: number };
+const BANK_ROUTING_NUMBER = "021000089";
+const BANK_ADDRESS = "Eastern Trust Bank NA, 100 Wall Street, Suite 2400, New York, NY 10005";
 
 const errors: Record<string, string> = {
   INSUFFICIENT_FUNDS: "There isn't enough money in that account.",
   INVALID_AMOUNT: "Enter a valid amount (up to 2 decimal places).",
-  RECIPIENT_NOT_FOUND: "We couldn't find an Eastern Trust customer with that email.",
+  RECIPIENT_NOT_FOUND: "We couldn't find an active Eastern Trust account with that account number.",
   SAME_ACCOUNT: "You can't transfer to your own account.",
   ACCOUNT_NOT_FOUND: "Your active checking account wasn't found. Please refresh and try again.",
   ARCHIVED_ACCOUNT_LOCKED: "This account is archived and cannot be used for transfers.",
@@ -29,8 +32,9 @@ const errors: Record<string, string> = {
   INVALID_PIN: "Choose a PIN of 4 to 6 digits.",
   INVALID_RECIPIENT: "Enter the recipient's full name.",
   INVALID_BANK: "Enter the recipient's bank name.",
+  INVALID_BANK_ADDRESS: "Enter the recipient's bank address.",
   INVALID_SWIFT: "Enter a valid SWIFT/BIC code (8–11 characters).",
-  INVALID_ACCOUNT_NUMBER: "Enter a valid account number or IBAN.",
+  INVALID_ACCOUNT_NUMBER: "Enter a valid recipient account number (8–20 digits).",
   INVALID_CURRENCY: "Choose a currency.",
   INVALID_COUNTRY: "Choose a destination country.",
   COUNTRY_NOT_SUPPORTED: "We don't currently support wire transfers to that country.",
@@ -66,6 +70,7 @@ export function CustomerBanking({
   isSuspended = false,
   customerId,
   isAdminView = false,
+  accountHolderName = "Eastern Trust Client",
 }: {
   accounts: BankAccount[];
   onChange: () => void;
@@ -73,12 +78,14 @@ export function CustomerBanking({
   isSuspended?: boolean;
   customerId?: string;
   isAdminView?: boolean;
+  accountHolderName?: string;
 }) {
   const listAdminTxns = useServerFn(listTransactions);
   const [txns, setTxns] = useState<Txn[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [mode, setMode] = useState<"transfer" | "pay" | "wire" | null>(null);
+  const [receiveOpen, setReceiveOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [hasPin, setHasPin] = useState<boolean | null>(null);
   const [pinOpen, setPinOpen] = useState(false);
@@ -207,6 +214,9 @@ export function CustomerBanking({
           >
             <ArrowLeftRight className="mr-1.5 size-4" /> Domestic transfer
           </Button>
+          <Button variant="outline" onClick={() => setReceiveOpen(true)}>
+            <Download className="mr-1.5 size-4" /> Receive money
+          </Button>
           <Button
             variant="outline"
             onClick={() => openMode("pay")}
@@ -268,7 +278,57 @@ export function CustomerBanking({
       <SetPinDialog open={pinOpen} onClose={() => { setPinOpen(false); setPendingMode(null); }} onDone={() => { setPinOpen(false); setHasPin(true); if (pendingMode) setMode(pendingMode); setPendingMode(null); }} />
       <MoneyDialog mode={mode === "wire" ? null : mode} accounts={accounts} isSuspended={userSuspended} onClose={() => setMode(null)} onDone={done} />
       <WireDialog open={mode === "wire"} accounts={accounts} isSuspended={userSuspended} onClose={() => setMode(null)} onDone={done} />
+      <ReceiveMoneyDialog open={receiveOpen} onClose={() => setReceiveOpen(false)} account={accounts[0]} accountHolderName={accountHolderName} />
     </>
+  );
+}
+
+function ReceiveMoneyDialog({ open, onClose, account, accountHolderName }: { open: boolean; onClose: () => void; account: BankAccount | undefined; accountHolderName: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const acctFormatted = formatAccountNumber(account?.account_number, account?.last_four);
+  const acctRaw = cleanAccountNumber(account?.account_number ?? "") || acctFormatted.replace(/\s/g, "");
+  const copy = (label: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied(label);
+    toast.success(`${label} copied`);
+    setTimeout(() => setCopied(null), 1800);
+  };
+  const rows = [
+    { label: "Recipient name", value: accountHolderName },
+    { label: "Account number", value: acctFormatted, copyValue: acctRaw, mono: true },
+    { label: "Routing number", value: BANK_ROUTING_NUMBER, mono: true },
+    { label: "Bank address", value: BANK_ADDRESS },
+  ];
+  const fullSummary = `Recipient Name: ${accountHolderName}\nAccount Number: ${acctRaw}\nRouting Number: ${BANK_ROUTING_NUMBER}\nBank Address: ${BANK_ADDRESS}`;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Your transfer details</DialogTitle>
+          <DialogDescription>Share these details with another Eastern Trust customer so they can transfer money directly to your checking account.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 text-sm">
+          {rows.map((r) => (
+            <div key={r.label} className="flex items-center justify-between gap-3 border border-border bg-background/60 p-3">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{r.label}</p>
+                <p className={r.mono ? "font-mono font-semibold" : "font-medium"}>{r.value}</p>
+              </div>
+              <Button type="button" variant="ghost" size="icon" aria-label={`Copy ${r.label}`} onClick={() => copy(r.label, r.copyValue ?? r.value)}>
+                {copied === r.label ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
+              </Button>
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>Close</Button>
+          <Button type="button" onClick={() => copy("All transfer details", fullSummary)}>
+            <Copy className="mr-1.5 size-4" /> Copy all details
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -321,7 +381,9 @@ function PinField({ pin, setPin }: { pin: string; setPin: (v: string) => void })
 function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: { mode: "transfer" | "pay" | null; accounts: BankAccount[]; isSuspended?: boolean; onClose: () => void; onDone: () => void }) {
   const sources = accounts.filter((a) => (mode === "pay" ? a.account_type !== "investment" : ["checking", "savings"].includes(a.account_type)));
   const [from, setFrom] = useState("");
-  const [email, setEmail] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientAcct, setRecipientAcct] = useState("");
+  const [recipientBankAddress, setRecipientBankAddress] = useState("");
   const [payee, setPayee] = useState("");
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
@@ -332,19 +394,25 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
   const [key, setKey] = useState("");
 
   useEffect(() => {
-    if (mode) { setFrom(sources[0]?.id ?? ""); setEmail(""); setPayee(""); setAmount(""); setMemo(""); setPin(""); setStep("form"); setErr(""); setKey(crypto.randomUUID()); }
+    if (mode) { setFrom(sources[0]?.id ?? ""); setRecipientName(""); setRecipientAcct(""); setRecipientBankAddress(""); setPayee(""); setAmount(""); setMemo(""); setPin(""); setStep("form"); setErr(""); setKey(crypto.randomUUID()); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
   const amt = Number(amount.replace(/,/g, "").trim());
-  const cleanEmail = email.trim();
+  const cleanRecipient = recipientName.trim();
+  const cleanAcct = cleanAccountNumber(recipientAcct);
+  const cleanBankAddress = recipientBankAddress.trim();
   const src = accounts.find((a) => a.id === from);
   const review = () => {
     setErr("");
     if (isSuspended) return setErr("Transfers and payments are restricted while your account is suspended.");
     if (!src) return setErr("Choose an account.");
     if (!(amt > 0) || Math.round(amt * 100) !== amt * 100) return setErr(errors["INVALID_AMOUNT"]!);
-    if (mode === "transfer" && !/^\S+@\S+\.\S+$/.test(cleanEmail)) return setErr("Enter the recipient's email.");
+    if (mode === "transfer") {
+      if (cleanRecipient.length < 2) return setErr(errors["INVALID_RECIPIENT"]!);
+      if (!isValidAccountNumber(recipientAcct)) return setErr(errors["INVALID_ACCOUNT_NUMBER"]!);
+      if (cleanBankAddress.length < 5) return setErr(errors["INVALID_BANK_ADDRESS"]!);
+    }
     if (mode === "pay" && payee.trim().length < 2) return setErr(errors["INVALID_PAYEE"]!);
     setStep("confirm");
   };
@@ -353,21 +421,21 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
     setBusy(true); setErr("");
     const pinHash = await hashPin(pin);
     const { error } = mode === "transfer"
-      ? await supabase.rpc("customer_transfer", { _from: from, _to_account: (null as unknown as string), _to_email: cleanEmail, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash })
+      ? await supabase.rpc("customer_user_transfer", { _from: from, _recipient_name: cleanRecipient, _to_account_number: cleanAcct, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash })
       : await supabase.rpc("customer_payment", { _from: from, _payee: payee, _amount: amt, _memo: memo, _key: key, _pin_hash: pinHash });
     setBusy(false);
     if (error) { setErr(friendly(error.message)); if (error.message.includes("PIN_INVALID")) return; setStep("form"); return; }
-    toast.success(mode === "transfer" ? `Transfer of ${fmt(amt)} sent to ${cleanEmail}.` : `Payment of ${fmt(amt)} sent to ${payee.trim()}.`);
+    toast.success(mode === "transfer" ? `Transfer of ${fmt(amt)} sent to ${cleanRecipient} (•••• ${cleanAcct.slice(-4)}).` : `Payment of ${fmt(amt)} sent to ${payee.trim()}.`);
     onDone();
   };
-  const destination = mode === "pay" ? payee : cleanEmail;
+  const destination = mode === "pay" ? payee : cleanRecipient;
 
   return (
     <Dialog open={mode !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{mode === "pay" ? "Pay a bill" : "Domestic transfer"}</DialogTitle>
-          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Send money to another Eastern Trust customer by email."}</DialogDescription>
+          <DialogDescription>{mode === "pay" ? "Pay a company or person from your account." : "Send money to another Eastern Trust customer using their name, account number, and bank address."}</DialogDescription>
         </DialogHeader>
         {step === "form" ? (
           <div className="grid gap-4">
@@ -377,8 +445,14 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
               </select></div>
             {mode === "transfer" ? (
               <>
-                <div className="grid gap-2"><Label htmlFor="recipient-email">Recipient email</Label>
-                  <Input id="recipient-email" aria-label="Recipient email" type="email" placeholder="Recipient's email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <div className="grid gap-2"><Label htmlFor="recipient-name">Recipient full name</Label>
+                  <Input id="recipient-name" maxLength={120} placeholder="e.g. Jane Doe" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+                </div>
+                <div className="grid gap-2"><Label htmlFor="recipient-acct">Recipient account number</Label>
+                  <Input id="recipient-acct" inputMode="numeric" maxLength={24} placeholder="e.g. 8204 1001 4617" value={recipientAcct} onChange={(e) => setRecipientAcct(e.target.value)} />
+                </div>
+                <div className="grid gap-2"><Label htmlFor="recipient-bank-address">Recipient bank address</Label>
+                  <Input id="recipient-bank-address" maxLength={200} placeholder="e.g. Eastern Trust Bank NA, 100 Wall St, New York, NY" value={recipientBankAddress} onChange={(e) => setRecipientBankAddress(e.target.value)} />
                 </div>
               </>
             ) : (
@@ -391,6 +465,12 @@ function MoneyDialog({ mode, accounts, isSuspended = false, onClose, onDone }: {
         ) : (
           <div className="grid gap-4 text-sm">
             <p>Send <strong>{fmt(amt)}</strong> from <strong>{src?.name}</strong> to <strong>{destination}</strong>?</p>
+            {mode === "transfer" && (
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>Account number: <span className="font-mono text-foreground">{formatAccountNumber(cleanAcct)}</span></p>
+                <p>Bank address: <span className="text-foreground">{cleanBankAddress}</span></p>
+              </div>
+            )}
             {memo && <p className="text-muted-foreground">Note: {memo}</p>}
             <PinField pin={pin} setPin={setPin} />
             {err && <p className="text-destructive">{err}</p>}

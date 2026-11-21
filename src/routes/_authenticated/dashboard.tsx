@@ -75,7 +75,7 @@ function Dashboard() {
 
       const { data } = await supabase
         .from("bank_accounts")
-        .select("id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft")
+        .select("id,account_type,name,last_four,account_number,available_balance,current_balance,credit_limit,currency,allow_overdraft")
         .eq("user_id", user.id)
         .eq("is_active", true);
 

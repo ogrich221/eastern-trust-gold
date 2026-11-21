@@ -2,6 +2,7 @@
 
 - [x] Keep exactly one usable account per customer, preserving historical records and balances safely.
 - [x] Align admin and customer credit, debit, transfer, and date-editing controls; verify and commit.
+- [x] Require recipient name, account number, and bank address (no email) on customer user-to-user transfers, add inline user-to-user transfer in admin, and let customers view/copy their receive-money transfer details.
 
 - [x] Add simple back and forward navigation for customers and admins.
 - [x] Show the Eastern Trust Bank logo during initial, route, dashboard, and admin loading.

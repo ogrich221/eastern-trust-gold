@@ -99,7 +99,7 @@ export const listCustomers = createServerFn({ method: "GET" })
       console.warn("Could not list users via Supabase auth admin API:", error?.message);
       const [{ data: profiles }, { data: accounts }] = await Promise.all([
         admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two,avatar_url"),
-        admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft").eq("is_active", true),
+        admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,account_number,available_balance,current_balance,credit_limit,currency,allow_overdraft").eq("is_active", true),
       ]);
 
       if (profiles && profiles.length > 0) {
@@ -126,7 +126,7 @@ export const listCustomers = createServerFn({ method: "GET" })
     }
     const [{ data: profiles }, { data: accounts }, { data: roles }] = await Promise.all([
       admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two,avatar_url"),
-      admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft").eq("is_active", true),
+      admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,account_number,available_balance,current_balance,credit_limit,currency,allow_overdraft").eq("is_active", true),
       admin.from("user_roles").select("user_id,role"),
     ]);
 
@@ -1276,10 +1276,66 @@ export const renameCustomerAccount = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ accountId: z.string().uuid(), name: z.string().trim().min(1).max(80), last_four: z.string().regex(/^\d{4}$/) }).parse(d))
   .handler(async ({ data, context }) => {
     const { admin, log } = await assertAdmin(context);
-    const { data: row, error } = await admin.from("bank_accounts").update({ name: data.name, last_four: data.last_four }).eq("id", data.accountId).select("user_id").single();
+    const { data: existing } = await admin.from("bank_accounts").select("account_number").eq("id", data.accountId).maybeSingle();
+    const nextAcctNo = existing?.account_number && existing.account_number.length >= 4
+      ? `${existing.account_number.slice(0, -4)}${data.last_four}`
+      : undefined;
+    const { data: row, error } = await admin.from("bank_accounts").update({
+      name: data.name,
+      last_four: data.last_four,
+      ...(nextAcctNo ? { account_number: nextAcctNo } : {}),
+    }).eq("id", data.accountId).select("user_id").single();
     if (error) throw new Error("Could not update account");
     await log("rename_account", row.user_id, data);
     return { ok: true };
+  });
+
+export const adminTransferBetweenUsers = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({
+    fromAccountId: z.string().uuid(),
+    toAccountNumber: z.string().trim().min(8).max(32),
+    recipientName: z.string().trim().min(2).max(120),
+    amount: z.string().trim().regex(/^\d{1,10}(\.\d{1,2})?$/, "Invalid amount").refine((v) => Number(v) > 0, "Amount must be above zero"),
+    memo: z.string().trim().max(140).optional().default(""),
+    idempotencyKey: z.string().uuid(),
+    transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid transaction date").refine(isValidTransactionDate, "Choose a valid transaction date").optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { admin, log } = await assertAdmin(context);
+    const cleanAcct = data.toAccountNumber.replace(/\D/g, "");
+    if (cleanAcct.length < 8 || cleanAcct.length > 20) {
+      throw new Error("Enter a valid recipient account number (8–20 digits).");
+    }
+    const { data: outId, error } = await admin.rpc("admin_user_transfer", {
+      _from_account_id: data.fromAccountId,
+      _to_account_number: cleanAcct,
+      _recipient_name: data.recipientName,
+      _amount: Number(data.amount),
+      _memo: data.memo || "",
+      _admin: context.adminName || "Admin",
+      _idempotency_key: data.idempotencyKey,
+      ...(data.transactionDate ? { _transaction_date: data.transactionDate } : {}),
+    });
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("INSUFFICIENT_FUNDS")) throw new Error("Sender account does not have enough available funds.");
+      if (msg.includes("RECIPIENT_NOT_FOUND")) throw new Error("No active customer checking account matches that account number.");
+      if (msg.includes("SAME_ACCOUNT")) throw new Error("Sender and recipient must be different customers.");
+      if (msg.includes("INVALID_RECIPIENT")) throw new Error("Enter the recipient's full name.");
+      if (msg.includes("INVALID_ACCOUNT_NUMBER")) throw new Error("Enter a valid recipient account number.");
+      throw new Error(msg || "Transfer failed.");
+    }
+    await log("admin_user_transfer", null, {
+      fromAccountId: data.fromAccountId,
+      toAccountNumber: cleanAcct,
+      recipientName: data.recipientName,
+      amount: Number(data.amount),
+      memo: data.memo || "",
+      transactionDate: data.transactionDate || null,
+      transactionId: outId,
+    });
+    return { ok: true, id: outId };
   });
 
 export const removeCustomerAccount = createServerFn({ method: "POST" })

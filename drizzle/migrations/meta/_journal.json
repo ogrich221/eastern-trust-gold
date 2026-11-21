@@ -127,6 +127,13 @@
       "when": 1795284512444,
       "tag": "0017_fix_set_transfer_pin_profile_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795287267263,
+      "tag": "0018_account_numbers_and_user_transfers",
+      "breakpoints": true
     }
   ]
 }
