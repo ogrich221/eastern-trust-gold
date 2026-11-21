@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Undo2 } from "lucide-react";
+import { Pencil, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { postTransaction, reverseTransaction, listTransactions, listWires, setWireStatus } from "@/lib/admin.functions";
+import { postTransaction, reverseTransaction, listTransactions, listWires, setWireStatus, updateTransactionDate } from "@/lib/admin.functions";
 import { currentTransactionDate, formatTransactionDate, isValidTransactionDate } from "@/lib/transaction-date";
 
 const fmt = (n: number, c = "USD") => n.toLocaleString("en-US", { style: "currency", currency: c });
@@ -180,11 +180,18 @@ export function TransactionLedger({ userId, emailOf }: { userId?: string; emailO
   const [page, setPage] = useState(0);
   const q = useQuery({ queryKey: ["admin-txns", userId ?? "all", f, page], queryFn: () => listFn({ data: { userId, ...f, page } }) });
   const [rev, setRev] = useState<{ id: string; reason: string; key: string } | null>(null);
+  const [dateEdit, setDateEdit] = useState<{ id: string; date: string; reason: string } | null>(null);
   const reverseFn = useServerFn(reverseTransaction);
+  const updateDateFn = useServerFn(updateTransactionDate);
   const refresh = useRefresh();
   const rm = useMutation({
     mutationFn: (r: { id: string; reason: string; key: string }) => reverseFn({ data: { transactionId: r.id, reason: r.reason, idempotencyKey: r.key } }),
     onSuccess: () => { toast.success("Transaction reversed"); setRev(null); refresh(); },
+    onError: (e) => toast.error(errMsg(e)),
+  });
+  const dateMutation = useMutation({
+    mutationFn: (edit: { id: string; date: string; reason: string }) => updateDateFn({ data: { transactionId: edit.id, transactionDate: edit.date, reason: edit.reason } }),
+    onSuccess: () => { toast.success("Transaction date updated"); setDateEdit(null); refresh(); },
     onError: (e) => toast.error(errMsg(e)),
   });
   const set = (k: keyof typeof f, v: string) => { setF({ ...f, [k]: v }); setPage(0); };
@@ -282,16 +289,26 @@ export function TransactionLedger({ userId, emailOf }: { userId?: string; emailO
                   </Badge>
                 </td>
                 <td className="p-3">
-                  {t.status === "COMPLETED" && !t.reverses_id && (
+                  <div className="flex flex-col items-start gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setRev({ id: t.id, reason: "", key: newKey() })}
+                      onClick={() => setDateEdit({ id: t.id, date: t.transaction_date, reason: "" })}
                       className="h-7 text-xs text-slate-400 hover:text-white hover:bg-white/10"
                     >
-                      <Undo2 className="mr-1 size-3" /> Reverse
+                      <Pencil className="mr-1 size-3" /> Edit date
                     </Button>
-                  )}
+                    {t.status === "COMPLETED" && !t.reverses_id && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setRev({ id: t.id, reason: "", key: newKey() })}
+                        className="h-7 text-xs text-slate-400 hover:text-white hover:bg-white/10"
+                      >
+                        <Undo2 className="mr-1 size-3" /> Reverse
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -314,6 +331,51 @@ export function TransactionLedger({ userId, emailOf }: { userId?: string; emailO
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={dateEdit !== null} onOpenChange={(o) => { if (!o && !dateMutation.isPending) setDateEdit(null); }}>
+        <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Edit transaction date</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-slate-300">
+              Change only the calendar date for transaction {dateEdit?.id.slice(0, 8)}. The amount, balances, description, and original entry time stay unchanged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-transaction-date" className="text-xs text-slate-300">Transaction date</Label>
+              <Input
+                id="edit-transaction-date"
+                type="date"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 text-white text-xs"
+                value={dateEdit?.date ?? ""}
+                onChange={(e) => dateEdit && setDateEdit({ ...dateEdit, date: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-transaction-date-reason" className="text-xs text-slate-300">Reason for correction (required)</Label>
+              <Input
+                id="edit-transaction-date-reason"
+                className="mt-1 h-9 rounded-xl border-white/10 bg-slate-950/60 text-white text-xs placeholder:text-slate-500"
+                maxLength={300}
+                value={dateEdit?.reason ?? ""}
+                onChange={(e) => dateEdit && setDateEdit({ ...dateEdit, reason: e.target.value })}
+                placeholder="e.g. Corrected value date from customer statement"
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={dateMutation.isPending} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={dateMutation.isPending || !dateEdit || !isValidTransactionDate(dateEdit.date) || dateEdit.reason.trim().length < 3}
+              onClick={(e) => { e.preventDefault(); if (dateEdit) dateMutation.mutate(dateEdit); }}
+              className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-medium text-xs"
+            >
+              {dateMutation.isPending ? "Saving…" : "Save Date"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={rev !== null} onOpenChange={(o) => { if (!o && !rm.isPending) setRev(null); }}>
         <AlertDialogContent className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">

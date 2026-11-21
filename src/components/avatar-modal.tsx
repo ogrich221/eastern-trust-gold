@@ -411,8 +411,12 @@ export function AvatarModal({
       }
 
       if (typeof window !== "undefined") {
-        if (finalUrl) localStorage.setItem(`etb_avatar_${userId}`, finalUrl);
-        else localStorage.removeItem(`etb_avatar_${userId}`);
+        try {
+          if (finalUrl) localStorage.setItem(`etb_avatar_${userId}`, finalUrl);
+          else localStorage.removeItem(`etb_avatar_${userId}`);
+        } catch {
+          // The saved profile remains authoritative if browser storage is full or unavailable.
+        }
       }
       if (!onSave && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("etb-avatar-updated", { detail: finalUrl || null }));

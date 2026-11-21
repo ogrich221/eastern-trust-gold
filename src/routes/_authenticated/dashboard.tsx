@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, type ProfileAccount, type ProfileData } from "@/components/user-profile";
+import { BankLoadingScreen } from "@/components/bank-chrome";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   staticData: { sitemap: false },
@@ -30,7 +31,7 @@ function Dashboard() {
     const load = async () => {
       let { data: prof } = await supabase
         .from("profiles")
-        .select("first_name,last_name,phone,address,city,postal_code")
+        .select("first_name,last_name,phone,address,city,postal_code,avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -64,6 +65,7 @@ function Dashboard() {
               address: row.address,
               city: row.city,
               postal_code: row.postal_code,
+              avatar_url: null,
             };
           }
         }
@@ -96,9 +98,7 @@ function Dashboard() {
     <main className="min-h-[calc(100vh-5rem)] py-10">
       <div className="mx-auto max-w-7xl px-5 lg:px-8">
         {accounts === null ? (
-          <div className="flex h-64 items-center justify-center">
-            <p className="text-muted-foreground animate-pulse">Loading your banking profile…</p>
-          </div>
+          <BankLoadingScreen label="Loading your banking profile" />
         ) : (
           <UserProfile
             user={user}

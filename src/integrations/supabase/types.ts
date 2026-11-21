@@ -310,6 +310,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_edit_transaction_date: {
+        Args: {
+          _admin: string
+          _reason: string
+          _transaction_date: string
+          _transaction_id: string
+        }
+        Returns: string
+      }
       admin_post_transaction: {
         Args: {
           _account_id: string

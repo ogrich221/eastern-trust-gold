@@ -75,7 +75,7 @@ export type ProfileData = {
   address?: string;
   city?: string;
   postal_code?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   security_question_one?: string;
   security_question_two?: string;
 };
@@ -248,6 +248,9 @@ export function UserProfile({
         city: initialProfile.city ?? "",
         postal_code: initialProfile.postal_code ?? "",
       });
+      if (Object.prototype.hasOwnProperty.call(initialProfile, "avatar_url")) {
+        setAvatarUrl(initialProfile.avatar_url || "");
+      }
     }
   }, [initialProfile]);
 

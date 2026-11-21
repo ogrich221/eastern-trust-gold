@@ -124,7 +124,7 @@ export const listCustomers = createServerFn({ method: "GET" })
       return [];
     }
     const [{ data: profiles }, { data: accounts }, { data: roles }] = await Promise.all([
-      admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two"),
+      admin.from("profiles").select("id,first_name,last_name,phone,address,city,postal_code,created_at,security_question_one,security_question_two,avatar_url"),
       admin.from("bank_accounts").select("id,user_id,account_type,name,last_four,available_balance,current_balance,credit_limit,currency,allow_overdraft"),
       admin.from("user_roles").select("user_id,role"),
     ]);
@@ -161,6 +161,7 @@ export const listCustomers = createServerFn({ method: "GET" })
           created_at: u.created_at,
           security_question_one: String(pending.security_question_one || "What was the name of your first school?"),
           security_question_two: String(pending.security_question_two || "What city did your parents meet in?"),
+          avatar_url: null,
         };
         profileList.push(synthesizedProfile);
 
@@ -401,6 +402,80 @@ export const updateCustomerContactInfo = createServerFn({ method: "POST" })
     }
 
     await log("update_contact_info", userId, { email, ...fields });
+    return { ok: true };
+  });
+
+export const updateCustomerDetails = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({
+    userId: z.string().uuid(),
+    email: z.string().trim().email().max(255),
+    first_name: z.string().trim().min(1).max(80),
+    last_name: z.string().trim().min(1).max(80),
+    phone: z.string().trim().min(3).max(40),
+    address: z.string().trim().min(1).max(240),
+    city: z.string().trim().min(1).max(100),
+    postal_code: z.string().trim().min(1).max(20),
+    security_question_one: z.string().trim().min(3).max(200),
+    security_question_two: z.string().trim().min(3).max(200),
+    answer_one: z.string().trim().max(100).default(""),
+    answer_two: z.string().trim().max(100).default(""),
+    transfer_pin: z.string().trim().regex(/^\d{4,6}$/, "PIN must be 4–6 digits").or(z.literal("")).default(""),
+    password: z.string().max(72).default("").refine((v) => !v || v.length >= 10, "Password must be at least 10 characters"),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { admin, log } = await assertAdmin(context);
+    const { userId, email, answer_one, answer_two, transfer_pin, password, ...profileDetails } = data;
+    const emptyHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    const profileUpdate: Record<string, unknown> = { ...profileDetails };
+    if (answer_one) profileUpdate["security_answer_one_hash"] = await hashAnswer(answer_one);
+    if (answer_two) profileUpdate["security_answer_two_hash"] = await hashAnswer(answer_two);
+    if (transfer_pin) profileUpdate["transfer_pin_hash"] = await hashAnswer(transfer_pin);
+
+    const { data: existingProf } = await admin.from("profiles").select("id").eq("id", userId).maybeSingle();
+    if (existingProf) {
+      const { error } = await admin.from("profiles").update(profileUpdate).eq("id", userId);
+      if (error) throw new Error(`Could not update customer details: ${error.message}`);
+    } else {
+      const { error } = await admin.from("profiles").insert({
+        id: userId,
+        ...profileUpdate,
+        security_answer_one_hash: profileUpdate["security_answer_one_hash"] ?? emptyHash,
+        security_answer_two_hash: profileUpdate["security_answer_two_hash"] ?? emptyHash,
+      });
+      if (error) throw new Error(`Could not create customer profile: ${error.message}`);
+    }
+
+    const authPayload: {
+      email: string;
+      email_confirm: boolean;
+      user_metadata: Record<string, string>;
+      password?: string;
+    } = {
+      email,
+      email_confirm: true,
+      user_metadata: {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        postal_code: data.postal_code,
+        full_name: `${data.first_name} ${data.last_name}`.trim(),
+      },
+    };
+    if (password) authPayload.password = password;
+    const { error: authError } = await admin.auth.admin.updateUserById(userId, authPayload);
+    if (authError) throw new Error(`Profile saved, but login details could not be updated: ${authError.message}`);
+
+    await log("update_customer_details", userId, {
+      email,
+      name: `${data.first_name} ${data.last_name}`.trim(),
+      securityAnswerOneChanged: Boolean(answer_one),
+      securityAnswerTwoChanged: Boolean(answer_two),
+      transferPinChanged: Boolean(transfer_pin),
+      passwordChanged: Boolean(password),
+    });
     return { ok: true };
   });
 
@@ -740,6 +815,30 @@ export const listTransactions = createServerFn({ method: "GET" })
     return { rows: (rows ?? []).map((r) => ({ ...r, amount: Number(r.amount), balance_before: Number(r.balance_before), balance_after: Number(r.balance_after) })), total: count ?? 0, pageSize: size };
   });
 
+
+export const updateTransactionDate = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d) => z.object({
+    transactionId: z.string().uuid(),
+    transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid transaction date").refine(isValidTransactionDate, "Choose a valid transaction date"),
+    reason: z.string().trim().min(3, "Enter a reason of at least 3 characters").max(300),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { admin } = await assertAdmin(context);
+    const { data: id, error } = await admin.rpc("admin_edit_transaction_date", {
+      _transaction_id: data.transactionId,
+      _transaction_date: data.transactionDate,
+      _reason: data.reason,
+      _admin: context.adminName,
+    });
+    if (error) {
+      if (error.message.includes("NOT_FOUND")) throw new Error("Transaction not found.");
+      if (error.message.includes("INVALID_TRANSACTION_DATE")) throw new Error("Choose a valid transaction date.");
+      if (error.message.includes("INVALID_REASON")) throw new Error("Enter a reason between 3 and 300 characters.");
+      throw new Error(`Could not update transaction date: ${error.message}`);
+    }
+    return { ok: true, id: id as string };
+  });
 
 export const setCustomerSuspended = createServerFn({ method: "POST" })
   .middleware([requireAdmin])

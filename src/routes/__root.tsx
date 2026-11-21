@@ -16,6 +16,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { BankLogo, HistoryNavigation, RouteLoadingIndicator } from "@/components/bank-chrome";
 
 function NotFoundComponent() {
   return (
@@ -181,8 +182,12 @@ function RootComponent() {
       const cached = localStorage.getItem(`etb_avatar_${userId}`);
       setUserAvatar(metaUrl || cached || null);
       const { data: prof } = await supabase.from("profiles").select("avatar_url").eq("id", userId).maybeSingle();
-      const url = (prof as { avatar_url?: string | null } | null)?.avatar_url;
-      if (url) setUserAvatar(url);
+      const url = (prof as { avatar_url?: string | null } | null)?.avatar_url || null;
+      if (prof) {
+        setUserAvatar(url);
+        if (url) localStorage.setItem(`etb_avatar_${userId}`, url);
+        else localStorage.removeItem(`etb_avatar_${userId}`);
+      }
     };
     supabase.auth.getSession().then(({ data }) => {
       setSignedIn(Boolean(data.session));
@@ -222,13 +227,14 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {!isAdmin && <TawkChat />}
       <NetlifyDrawerRemover />
+      <RouteLoadingIndicator />
       {!isAdmin && (
         <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
           <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
-            <Link to="/" className="flex items-center gap-3" aria-label="Eastern Trust Bank home">
-              <span className="grid size-10 place-items-center border border-primary text-lg font-bold text-primary">ET</span>
-              <span className="font-display text-xl font-semibold text-foreground">Eastern Trust <span className="text-primary">Bank</span></span>
-            </Link>
+            <div className="flex min-w-0 items-center gap-2">
+              <HistoryNavigation />
+              <BankLogo />
+            </div>
             <nav className="hidden items-center gap-7 lg:flex" aria-label="Main navigation">
               {links.map(([label, to]) => <Link key={to} to={to} className="text-sm text-muted-foreground transition-colors hover:text-primary" activeProps={{ className: "text-primary" }}>{label}</Link>)}
             </nav>

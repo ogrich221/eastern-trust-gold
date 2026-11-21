@@ -93,6 +93,7 @@ import {
   checkServiceKeyStatus,
   updateCustomerAvatar,
   updateCustomerContactInfo,
+  updateCustomerDetails,
   postTransaction,
   purgeTestrunUsers,
 } from "@/lib/admin.functions";
@@ -102,6 +103,7 @@ import { AdminReports } from "@/components/admin-reports";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarModal } from "@/components/avatar-modal";
 import { currentTransactionDate, formatTransactionDate, isValidTransactionDate } from "@/lib/transaction-date";
+import { BankLoadingScreen, HistoryNavigation } from "@/components/bank-chrome";
 
 export const Route = createFileRoute("/admin")({
   staticData: { sitemap: false },
@@ -136,7 +138,7 @@ function AdminPage() {
     },
     retry: 1,
   });
-  if (isLoading) return <main className="mx-auto max-w-7xl px-5 py-16 text-muted-foreground animate-pulse">Loading admin portal…</main>;
+  if (isLoading) return <BankLoadingScreen label="Loading admin portal" />;
   if (isError || !data?.adminName) return <AdminLogin />;
   return <AdminPortal adminName={data.adminName} />;
 }
@@ -164,6 +166,7 @@ function AdminLogin() {
   };
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 py-16 overflow-hidden bg-slate-950 text-slate-100">
+      <HistoryNavigation className="absolute left-4 top-4 z-10" />
       {/* Ambient glass background glow */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(217,119,6,0.15),transparent_50%),radial-gradient(circle_at_75%_75%,rgba(16,185,129,0.1),transparent_50%)]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:3.5rem_3.5rem]" />
@@ -380,6 +383,7 @@ function AdminPortal({ adminName }: { adminName: string }) {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-900/40 backdrop-blur-2xl p-6 shadow-2xl relative overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent" />
           <div className="flex items-center gap-4">
+            <HistoryNavigation />
             <span className="flex size-14 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-400 shadow-lg shadow-amber-500/10">
               <ShieldCheck className="size-7" />
             </span>
@@ -398,9 +402,9 @@ function AdminPortal({ adminName }: { adminName: string }) {
           <div className="flex items-center gap-4">
             <div className="hidden sm:block text-right">
               <p className="text-[11px] text-slate-400">Logged in officer</p>
-              <p className="text-sm font-semibold text-white flex items-center justify-end gap-1.5">
+              <div className="text-sm font-semibold text-white flex items-center justify-end gap-1.5">
                 {adminName} <Badge variant="outline" className="text-[10px] py-0 border-amber-500/40 bg-amber-500/10 text-amber-300">Admin</Badge>
-              </p>
+              </div>
             </div>
             <Button variant="outline" size="sm" onClick={signOut} className="rounded-xl border-white/10 bg-slate-800/40 backdrop-blur hover:bg-white/10 text-xs">
               <LogOut className="mr-1.5 size-3.5" /> Sign Out
@@ -1029,7 +1033,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
               <TrendingUp className="mr-1.5 size-3.5" /> Credit / Debit
             </Button>
             <Button variant="outline" size="sm" onClick={() => setContactModalOpen(true)} className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200">
-              <FileText className="mr-1.5 size-3.5" /> Edit Contact Info
+              <FileText className="mr-1.5 size-3.5" /> Edit Customer Details
             </Button>
             <Button variant="outline" size="sm" onClick={() => setAvatarModalOpen(true)} className="text-xs border-white/10 bg-white/5 hover:bg-white/10 text-slate-200">
               <Camera className="mr-1.5 size-3.5" /> Photo
@@ -1186,7 +1190,7 @@ function CustomerDetail({ c, onDeleted }: { c: Customer; onDeleted: () => void }
                   onClick={() => setContactModalOpen(true)}
                   className="text-xs h-7 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
                 >
-                  <Edit3 className="mr-1 size-3" /> Edit Contact Info
+                  <Edit3 className="mr-1 size-3" /> Edit Customer Details
                 </Button>
                 <Badge variant="outline" className="text-xs font-mono border-white/10 text-slate-300">
                   {c.is_admin ? "Administrator" : "Standard Client"}
@@ -1842,7 +1846,7 @@ function EditContactInfoDialog({
   customer: Customer;
 }) {
   const qc = useQueryClient();
-  const contactInfoFn = useServerFn(updateCustomerContactInfo);
+  const detailsFn = useServerFn(updateCustomerDetails);
   const [form, setForm] = useState({
     first_name: customer.profile?.first_name ?? "",
     last_name: customer.profile?.last_name ?? "",
@@ -1851,6 +1855,12 @@ function EditContactInfoDialog({
     address: customer.profile?.address ?? "",
     city: customer.profile?.city ?? "",
     postal_code: customer.profile?.postal_code ?? "",
+    security_question_one: customer.profile?.security_question_one ?? QUESTIONS[0]!,
+    security_question_two: customer.profile?.security_question_two ?? QUESTIONS[1]!,
+    answer_one: "",
+    answer_two: "",
+    transfer_pin: "",
+    password: "",
   });
 
   useEffect(() => {
@@ -1862,13 +1872,19 @@ function EditContactInfoDialog({
       address: customer.profile?.address ?? "",
       city: customer.profile?.city ?? "",
       postal_code: customer.profile?.postal_code ?? "",
+      security_question_one: customer.profile?.security_question_one ?? QUESTIONS[0]!,
+      security_question_two: customer.profile?.security_question_two ?? QUESTIONS[1]!,
+      answer_one: "",
+      answer_two: "",
+      transfer_pin: "",
+      password: "",
     });
   }, [customer]);
 
   const m = useMutation({
-    mutationFn: (data: typeof form) => contactInfoFn({ data: { userId: customer.id, ...data } }),
+    mutationFn: (data: typeof form) => detailsFn({ data: { userId: customer.id, ...data } }),
     onSuccess: () => {
-      toast.success("Contact details updated successfully");
+      toast.success("Customer details updated successfully");
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
       qc.invalidateQueries({ queryKey: ["admin-audit"] });
       onOpenChange(false);
@@ -1890,18 +1906,26 @@ function EditContactInfoDialog({
       toast.error("A contact telephone number is required");
       return;
     }
+    if (form.transfer_pin && !/^\d{4,6}$/.test(form.transfer_pin)) {
+      toast.error("Transfer PIN must contain 4 to 6 digits");
+      return;
+    }
+    if (form.password && form.password.length < 10) {
+      toast.error("A new password must contain at least 10 characters");
+      return;
+    }
     m.mutate(form);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl text-slate-100 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white font-display">
-            <FileText className="size-5 text-amber-400" /> Edit Personal Contact Information
+            <FileText className="size-5 text-amber-400" /> Edit All Customer Details
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-300">
-            Update personal identity and direct contact records for{" "}
+            Update identity, contact, login, and security records for{" "}
             <strong className="text-white">{customer.profile ? `${customer.profile.first_name} ${customer.profile.last_name}` : customer.email}</strong>.
           </DialogDescription>
         </DialogHeader>
@@ -2006,12 +2030,79 @@ function EditContactInfoDialog({
             </div>
           </div>
 
+          <fieldset className="space-y-4 border-t border-white/10 pt-5">
+            <legend className="px-1 text-sm font-semibold text-white">Security questions</legend>
+            <p className="text-xs text-slate-400">Leave either answer blank to keep its current one-way security hash.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {([["security_question_one", "answer_one"], ["security_question_two", "answer_two"]] as const).map(([questionKey, answerKey], index) => (
+                <div key={questionKey} className="space-y-3 rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                  <div>
+                    <Label htmlFor={`ci-${questionKey}`} className="text-xs font-semibold text-slate-300">Security Question {index + 1}</Label>
+                    <select
+                      id={`ci-${questionKey}`}
+                      className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 text-xs text-white"
+                      value={form[questionKey]}
+                      onChange={(e) => setForm({ ...form, [questionKey]: e.target.value })}
+                      required
+                    >
+                      {Array.from(new Set([form[questionKey], ...QUESTIONS])).map((question) => <option key={question} value={question} className="bg-slate-900 text-white">{question}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor={`ci-${answerKey}`} className="text-xs font-semibold text-slate-300">New Answer {index + 1} (optional)</Label>
+                    <PasswordInput
+                      id={`ci-${answerKey}`}
+                      className="mt-1"
+                      inputClassName="h-9 rounded-xl border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500"
+                      maxLength={100}
+                      value={form[answerKey]}
+                      onChange={(e) => setForm({ ...form, [answerKey]: e.target.value })}
+                      placeholder="Keep current answer"
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="grid gap-4 border-t border-white/10 pt-5 sm:grid-cols-2">
+            <legend className="col-span-full px-1 text-sm font-semibold text-white">Login &amp; transfer security</legend>
+            <div>
+              <Label htmlFor="ci-transfer-pin" className="text-xs font-semibold text-slate-300">New Transfer PIN (optional)</Label>
+              <PasswordInput
+                id="ci-transfer-pin"
+                className="mt-1"
+                inputClassName="h-9 rounded-xl border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={6}
+                value={form.transfer_pin}
+                onChange={(e) => setForm({ ...form, transfer_pin: e.target.value.replace(/\D/g, "") })}
+                placeholder="4–6 digits; keep current if blank"
+              />
+            </div>
+            <div>
+              <Label htmlFor="ci-new-password" className="text-xs font-semibold text-slate-300">New Login Password (optional)</Label>
+              <PasswordInput
+                id="ci-new-password"
+                className="mt-1"
+                inputClassName="h-9 rounded-xl border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500"
+                autoComplete="new-password"
+                maxLength={72}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="Minimum 10 characters"
+              />
+            </div>
+          </fieldset>
+
           <DialogFooter className="mt-4">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={m.isPending} className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-xs">
               Cancel
             </Button>
             <Button type="submit" size="sm" disabled={m.isPending} className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs">
-              {m.isPending ? "Saving..." : "Save Contact Information"}
+              {m.isPending ? "Saving..." : "Save All Customer Details"}
             </Button>
           </DialogFooter>
         </form>

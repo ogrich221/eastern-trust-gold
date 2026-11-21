@@ -92,6 +92,20 @@
       "when": 1795223700905,
       "tag": "0012_separate_dated_admin_transaction_function",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795280958940,
+      "tag": "0013_allow_audited_transaction_date_corrections",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795280983540,
+      "tag": "0014_permit_date_only_ledger_updates",
+      "breakpoints": true
     }
   ]
 }
